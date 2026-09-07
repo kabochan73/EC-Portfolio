@@ -122,3 +122,55 @@
 
 ### 環境構築フェーズ 完了（Step 1〜6）
 `docker compose up -d` だけで「ブラウザ → Next.js → Laravel → PostgreSQL」＋ MinIO / Mailpit / queue worker が動く。次から機能実装（DB マイグレーション設計 → 公開カタログ API…）。
+
+---
+
+## 機能実装フェーズ（バックエンド）
+
+### Phase 2 — DB / モデル / 公開カタログ API（Step 7〜12）
+
+**Step 7 — 2026-09-07 DB マイグレーション + Enums + config**
+- マイグレーション11本を依存順にタイムスタンプ手動調整（`2026_09_07_100000`〜`100100`）。R2 の FK ソート順の罠を回避
+- `product_variants` の NULL 複合 UNIQUE は部分 UNIQUE インデックス2本立て（`WHERE color IS NOT NULL` / `IS NULL`）
+- CHECK 制約: `price>0` / `stock>=0` / `quantity>0` / `orders_status_check`
+- R3 追加テーブル: `payments`（order と1:1）/ `stripe_events`（Webhook 冪等性台帳）/ `site_contents`（CMS）
+- Enums: `UserRole` / `StockStatus`（`fromStock`・`label`・`selectable`）/ `OrderStatus`（`transitions`・`canTransitionTo`、副作用は持たない）
+- config: `shop.php` 新規、`services.php` に stripe、`app.php` に `frontend_url`
+- **`low_stock_threshold` はユーザー指定で 5**（docs 01/02/03/06 も同期）
+- 確認: `migrate` / `migrate:fresh` ともゼロから成功、部分 UNIQUE 2本・CHECK 4本を psql で確認
+
+**Step 8 — 2026-09-07 Models + Factories + Seeders + Enum の Unit テスト**
+- Model 10種（リレーション・スコープ・キャスト）。`Order` は `OrderStatus` キャスト + `order_number` ルートキー、`StripeEvent` は `claim`/`complete`、`SiteContent` は `defaults()` で4セクションの初期 JSON
+- `AppServiceProvider` に `preventLazyLoading`（非本番）。R2 の「単一モデルではすり抜ける」注意をコメント
+- Factory 全10モデル（状態メソッド付き）。`OrderItemFactory` の `image_url` は空文字既定（R2 の宿題）
+- Seeder: Admin / Category(4) / SiteContent(4) / Product(**14商品・48バリアント**、画像なし・冪等)
+- Unit: `StockStatusTest`（境界。閾値5）、`OrderStatusTransitionTest`（遷移マトリクス）
+- 確認: `migrate:fresh --seed` 成功、Factory スモークテスト、`php artisan test` 22 passed
+- 反省（ユーザー指摘）: 1コミット29ファイルは多すぎた。以降 Models/Factories/Seeders のような塊は分ける。次 Step に進む前に内容を説明して確認を取る
+
+**Step fix — 2026-09-07 テストが開発 DB を作り直す問題を修正**
+- `docker-compose.yml` の backend/queue に `env_file: ./backend/.env` を付けていたため `APP_ENV=local` / `DB_DATABASE=ecp` が実コンテナ環境変数になり、`phpunit.xml` の `<env>` でテスト DB を上書きできず、`php artisan test`（RefreshDatabase）が**開発 DB を毎回 migrate:fresh**していた
+- `env_file` を外し、Laravel はバインドマウントした `.env` をディスクから読む（ec2 と同じ方式）。テスト DB は `ecp_test` に分離できた
+
+**Step 9 — 2026-09-07 公開カテゴリ API**
+- `GET /api/categories` … `Category::ordered()->get()` を `CategoryResource`（`{id,name,slug}` のみ）
+- Feature テスト3本（position 順 / 露出項目 / 空リスト）
+
+**Step 10 — 2026-09-07 公開商品一覧 API**
+- `GET /api/products` … `published()` のみ・position 順。`?category`（slug、exists 検証）/ `?new`（`Request::boolean` で `true/1/yes` を許容、新着順・30日以内）/ `?limit`（1〜100）
+- `ProductSummaryResource`（カード用項目のみ・生の在庫数は返さず全 variant 合算の `stock_status`）、`ProductImageResource`
+- 詰まり: `?new=true` が最初 422（Laravel の `boolean` 検証は文字列 `"true"` を弾く）→ `$request->boolean('new')` に
+- Feature テスト7本
+
+**Step 11 — 2026-09-07 公開商品詳細 API**
+- `GET /api/products/{slug}` … `published()` のみ、未公開・不明 slug は 404
+- `ProductDetailResource`（description/material/care/origin/product_code/size_chart/images/colors/variants/related）。`colors` は色付き variant がある時のみ。`related` は同カテゴリの他の公開商品を position 順に全件
+- `ProductVariantResource` は公開用（`stock_status`/`stock_label`/`selectable`、生 stock は出さない）
+- Feature テスト7本
+
+**Step 12 — 2026-09-07 カート再検証 API**
+- `GET /api/cart/validate` … `?variant_ids[]` の配列を受け取り、各 variant の現在価格・`stock_status`・`max_quantity`（`min(stock, cart_max_quantity_per_line)`）・商品情報・主画像 URL を返す。存在しない/非公開商品の variant は `{ variant_id, available:false }`。リクエスト順を保持
+- Feature テスト7本
+
+### Phase 2 完了
+公開カタログ API（categories / products 一覧・詳細 / cart-validate）が揃った。`php artisan test` 46 passed。次は Phase 3（認証 / 会員 / 住所 / メール認証 / パスワードリセット）。
