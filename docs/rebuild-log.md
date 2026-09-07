@@ -22,7 +22,7 @@
 - 商品詳細に size_chart(jsonb) / material / care / origin / product_code
 - 管理者ページは Next.js 自作 `/admin`、Laravel に `/api/admin/*`、`users.role` で認可
 - 商品画像は private バケット（S3互換）+ Next.js `/media/[...key]` プロキシ。ローカルは MinIO
-- 在庫ステータス 0=SOLD OUT / 1〜3=LOW STOCK / 4+=在庫あり（閾値 config）
+- 在庫ステータス 0=SOLD OUT / LOW STOCK / 在庫あり（閾値は `config('shop.low_stock_threshold')`。R3 は 5）
 - カートはサーバー保持せずフロントのみ（`POST /api/orders` で一括送信）
 - 認証は BFF。Laravel は原則非公開（R3 の例外は Stripe Webhook の1本のみ）
 - 住所は注文時にスナップショットコピー

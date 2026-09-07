@@ -237,7 +237,7 @@ enum OrderStatus: string
 
 ```php
 return [
-    'low_stock_threshold' => 3,
+    'low_stock_threshold' => 5,
     'new_product_days' => 30,
     'shipping_fee' => 800,
     'free_shipping_threshold' => 20000,

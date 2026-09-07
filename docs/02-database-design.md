@@ -130,10 +130,10 @@ Bottoms の columns 例: `["ウエスト", "股上", "股下", "わたり幅", "
 | 条件 | value | セレクタ |
 |---|---|---|
 | `stock = 0` | `sold_out` | 選択不可・グレーアウト |
-| `1 <= stock <= 3` | `low_stock` | 選択可・`LOW STOCK` |
-| `stock >= 4` | `in_stock` | 選択可 |
+| `1 <= stock <= 5` | `low_stock` | 選択可・`LOW STOCK` |
+| `stock >= 6` | `in_stock` | 選択可 |
 
-`config('shop.low_stock_threshold', 3)`。公開 API は生の `stock` を返さない。
+`config('shop.low_stock_threshold')`（= 5）。公開 API は生の `stock` を返さない。
 
 ---
 

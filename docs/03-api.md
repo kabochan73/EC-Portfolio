@@ -49,7 +49,7 @@
   "related": [ /* 同カテゴリの他公開商品を position 順に全件、一覧と同じ要約形式 */ ]
 } }
 ```
-`stock_status` 閾値: `0`→`sold_out` / `1..3`→`low_stock` / `>=4`→`in_stock`。
+`stock_status` 閾値: `0`→`sold_out` / `1..5`→`low_stock` / `>=6`→`in_stock`（`config('shop.low_stock_threshold')` = 5）。
 
 ### GET /api/content （R3 追加。CMS）
 トップページの編集可能コンテンツ。詳細スキーマは `docs/11-cms.md`。

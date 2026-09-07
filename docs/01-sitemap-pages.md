@@ -84,7 +84,7 @@ R2 から不変。
   - 商品名 / 価格
   - 配送目安の囲み（`SHIPPING: 3–5 BUSINESS DAYS`、静的）
   - 色スウォッチ（複数色ある商品のみ。選択で画像・在庫を切替）
-  - サイズセレクタ（`stock=0` はグレーアウト・選択不可、`1〜3` はサイズ横に `LOW STOCK`）
+  - サイズセレクタ（`stock=0` はグレーアウト・選択不可、`1〜5` はサイズ横に `LOW STOCK`）
   - `ADD TO CART`（サイズ未選択時は非活性）
   - アコーディオン: `DESCRIPTION` / `MATERIAL & CARE` / `SIZE GUIDE`（`size_chart` を表、null は非表示）/ `SHIPPING & RETURNS`（静的）
   - スペック（アコーディオン外に小さく）: `ORIGIN` / `PRODUCT CODE`
@@ -178,6 +178,6 @@ R2 から不変。カード一覧（デフォルトにバッジ）、追加・�
 - 送料: 一律 ¥800、小計 ¥20,000 以上で無料
 - 価格・金額はすべて整数（JPY・税込）
 - 在庫: **注文作成時**（`POST /api/orders`）に `stock` を減算（トランザクション内）。決済失敗・放棄で `cancelled` にすると在庫を戻す
-- 在庫ステータス: `0`→SOLD OUT / `1〜3`→LOW STOCK / `4以上`→在庫あり（`LOW_STOCK_THRESHOLD = 3`）
+- 在庫ステータス: `0`→SOLD OUT / `1〜5`→LOW STOCK / `6以上`→在庫あり（`config('shop.low_stock_threshold') = 5`）
 - `NEW` バッジ: `created_at` が 30 日以内
 - 注文ステータス遷移: `docs/02-database-design.md` の state machine 参照
