@@ -174,3 +174,45 @@
 
 ### Phase 2 完了
 公開カタログ API（categories / products 一覧・詳細 / cart-validate）が揃った。`php artisan test` 46 passed。次は Phase 3（認証 / 会員 / 住所 / メール認証 / パスワードリセット）。
+
+### Phase 3 — 認証 / 会員 / 住所 / メール認証 / パスワードリセット（Step 13〜17）
+
+**Step 13 — 2026-09-07 認証コア（register / login / logout / me）**
+- Sanctum トークン認証。`RegisterUser` / `AuthenticateUser` Action（薄い Controller）
+- `register` 201 / `login` 200 は `{ data: user, token }`、`logout` 204
+- `AuthenticateUser` はユーザー有無で分岐せず常に `Hash::check` し 422 で存在を秘匿
+- `UserResource` は `email_verified` を含む。`login` に `throttle:login`（メール小文字 + IP で 5回/分、`AppServiceProvider` で定義）
+- Feature テスト10本
+
+**Step 14 — 2026-09-07 プロフィール更新（PUT /me, /me/password）**
+- `UpdateProfile` … 氏名・メール更新。メール変更時は `email_verified_at` を null に戻す
+- `UpdatePassword` … `UpdatePasswordRequest` の `current_password` ルール + `different:current_password` + `Password::min(8)`
+- `UpdateProfileRequest` は `unique->ignore(self)`
+- Feature テスト8本
+
+**Step fix — 2026-09-08 CartValidateApiTest のフレーク修正**
+- 同一商品に size 未指定で variant を2つ作っており、部分 UNIQUE `(product_id, size) WHERE color IS NULL` に約1/3で衝突。size を明示
+
+**Step 15 — 2026-09-08 住所録 CRUD**
+- `/api/addresses` の index / store / update / destroy / setDefault
+- Actions（Create/Update/Delete/SetDefault）はトランザクションで default の一意性を担保: 昇格で他を false 化、default 削除時は残りの直近1件を昇格、既存 default を `is_default=false` 指定では外さない（常に1件）
+- 他人の address id は 404 で存在を秘匿。`postal_code` は `123-4567` 形式
+- Feature テスト9本
+
+**Step 16 — 2026-09-08 メール認証フロー**
+- **Mailable + Job（キュー）を初導入**。`VerifyEmailMail`（Markdown、装飾は Phase 5）、`SendEmailVerificationJob`（`ShouldQueue`、user_id のみ、既認証はスキップ）
+- `User::sendEmailVerificationNotification()` を override して Job dispatch。`RegisterUser` / `UpdateProfile`（メール変更時）が呼ぶ
+- 検証エンドポイントは `URL::temporarySignedRoute(absolute: false)` の相対署名をフロントのリンクに載せ替え、`signed:relative` ミドルウェアで検証（BFF 中継時のホスト不一致を回避）。`verify` は hash も照合
+- 詰まり: queue worker が古いルートを掴んでいて `Route [verification.verify] not defined` で FAIL → `docker compose restart queue` で解消（**worker はコード/ルート変更時に再起動が必要**）
+- E2E: `curl register` → worker がジョブ処理 → Mailpit 受信、本文に `http://localhost:3000/verify-email?id=&hash=&expires=&signature=`
+- Feature テスト12本
+
+**Step 17 — 2026-09-08 パスワードリセット**
+- Laravel `Password` broker を使い、通知だけ自前 Mailable に差し替え（`User::sendPasswordResetNotification` → `SendPasswordResetJob`）
+- `sendLink` は常に 200・中立メッセージ（アカウント存在を秘匿）。`reset` は `Password::reset`、失敗は 422 の `email` エラー
+- リンクはフロントの `/reset-password?token=&email=`、60分有効
+- E2E: `curl /api/forgot-password` → 200、Mailpit に受信
+- Feature テスト8本
+
+### Phase 3 完了
+認証コア / プロフィール / 住所録 / メール認証 / パスワードリセットが揃った。`php artisan test` 93 passed。次は Phase 4（注文 + Stripe 決済）。
