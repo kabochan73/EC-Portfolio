@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Api\Admin\CustomerController as AdminCustomerController;
+use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Admin\ProductImageController as AdminProductImageController;
@@ -121,4 +123,10 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/orders', [AdminOrderController::class, 'index']);
     Route::get('/orders/{orderNumber}', [AdminOrderController::class, 'show']);
     Route::put('/orders/{orderNumber}/status', [AdminOrderController::class, 'updateStatus']);
+
+    // --- 会員（閲覧のみ） ---
+    Route::get('/customers', [AdminCustomerController::class, 'index']);
+
+    // --- ダッシュボード ---
+    Route::get('/stats', [AdminDashboardController::class, 'stats']);
 });

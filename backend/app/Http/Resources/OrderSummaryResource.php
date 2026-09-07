@@ -22,8 +22,8 @@ class OrderSummaryResource extends JsonResource
             'order_number' => $this->order_number,
             'status' => $this->status->value,
             'total' => $this->total,
-            // 点数 = 明細の quantity 合計（コントローラで withSum しておく）
-            'item_count' => (int) ($this->items_quantity_total ?? $this->items->sum('quantity')),
+            // 点数 = 明細の quantity 合計（コントローラで withSum しておく。明細なしは 0）
+            'item_count' => (int) ($this->items_quantity_total ?? 0),
             'placed_at' => $this->created_at?->toIso8601String(),
         ];
     }

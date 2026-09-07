@@ -22,7 +22,8 @@ class OrderListResource extends JsonResource
             'order_number' => $this->order_number,
             'status' => $this->status->value,
             'total' => $this->total,
-            'item_count' => (int) ($this->items_quantity_total ?? $this->items->sum('quantity')),
+            // コントローラで withSum('items','quantity') 済み前提（明細なしは 0）
+            'item_count' => (int) ($this->items_quantity_total ?? 0),
             'customer' => [
                 'id' => $this->user?->id,
                 'name' => $this->user?->name,
