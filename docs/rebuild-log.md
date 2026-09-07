@@ -316,3 +316,7 @@
 
 ### Phase 6 完了 = バックエンドの機能実装 完了
 公開カタログ / 認証・会員 / 住所 / 注文・決済・Webhook / 管理 API 一式（カテゴリ・商品・画像・バリアント・注文・state machine・会員・ダッシュボード）/ CMS / メール（4種、モノトーン）。**`php artisan test` 201 passed（595 assertions）**。次は フロントエンド（Next.js）。
+
+**整理 — 2026-09-08 コントローラー・リソースをドメインフォルダに**
+- フロント着手前にユーザー要望で backend を整理。`Api/` 直下のフラット 12 コントローラを `Shop/ Auth/ Account/ Order/ Webhook/` にグループ化、Resources も `Shop/ Order/ Account/`。`StripeWebhookController` → `Webhook/StripeController`、`OrderSummaryResource` → `Order/OrderListResource`（`Admin/OrderListResource` と命名統一）
+- テストは HTTP 経由で `App\Http\*` を直接参照しないため無変更 → 201 passed のまま安全網に。`pint --test` 207 files PASS
