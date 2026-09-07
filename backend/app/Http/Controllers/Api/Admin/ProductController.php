@@ -47,7 +47,10 @@ class ProductController extends Controller
 
     public function show(Product $product): ProductResource
     {
-        return ProductResource::make($product);
+        return ProductResource::make($product->load([
+            'images' => fn ($q) => $q->orderBy('position'),
+            'variants' => fn ($q) => $q->orderBy('position'),
+        ]));
     }
 
     public function update(UpdateProductRequest $request, Product $product, UpdateProduct $updateProduct): ProductResource

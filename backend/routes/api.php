@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Admin\ProductImageController as AdminProductImageController;
+use App\Http\Controllers\Api\Admin\VariantController as AdminVariantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
@@ -109,4 +110,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/products/{product}/images', [AdminProductImageController::class, 'store']);
     Route::put('/products/{product}/images/reorder', [AdminProductImageController::class, 'reorder']);
     Route::delete('/product-images/{productImage}', [AdminProductImageController::class, 'destroy']);
+
+    // --- バリアント（サイズ×色） ---
+    Route::post('/products/{product}/variants', [AdminVariantController::class, 'store']);
+    Route::put('/variants/{variant}', [AdminVariantController::class, 'update']);
+    Route::delete('/variants/{variant}', [AdminVariantController::class, 'destroy']);
 });

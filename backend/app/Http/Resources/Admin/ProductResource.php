@@ -2,13 +2,14 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Http\Resources\ProductImageResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * 管理向け商品詳細（編集フォーム用。docs/05-admin.md）。
- * 生の値をそのまま返す（category_id など）。images / variants は Step 26-27 で追加。
+ * 生の値をそのまま返す（category_id など）。images / variants を含む。
  *
  * @mixin Product
  */
@@ -34,6 +35,8 @@ class ProductResource extends JsonResource
             'is_published' => $this->is_published,
             'position' => $this->position,
             'created_at' => $this->created_at?->toIso8601String(),
+            'images' => ProductImageResource::collection($this->whenLoaded('images')),
+            'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
         ];
     }
 }
