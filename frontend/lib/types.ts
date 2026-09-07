@@ -217,7 +217,7 @@ export type UpdatePasswordPayload = {
   password: string;
   password_confirmation: string;
 };
-export type AddressPayload = Omit<Address, "id">;
+export type AddressPayload = Omit<Address, "id" | "is_default"> & { is_default?: boolean };
 export type ForgotPasswordPayload = { email: string };
 export type ResetPasswordPayload = {
   token: string;
