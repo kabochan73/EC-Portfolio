@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
@@ -95,4 +96,11 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/categories', [AdminCategoryController::class, 'store']);
     Route::put('/categories/{category}', [AdminCategoryController::class, 'update']);
     Route::delete('/categories/{category}', [AdminCategoryController::class, 'destroy']);
+
+    // --- 商品（基本情報。画像・バリアントは別ステップ） ---
+    Route::get('/products', [AdminProductController::class, 'index']);
+    Route::post('/products', [AdminProductController::class, 'store']);
+    Route::get('/products/{product}', [AdminProductController::class, 'show']);
+    Route::put('/products/{product}', [AdminProductController::class, 'update']);
+    Route::delete('/products/{product}', [AdminProductController::class, 'destroy']);
 });
