@@ -216,3 +216,44 @@
 
 ### Phase 3 完了
 認証コア / プロフィール / 住所録 / メール認証 / パスワードリセットが揃った。`php artisan test` 93 passed。次は Phase 4（注文 + Stripe 決済）。
+
+### Phase 4 — 注文 + Stripe 決済（Step 18〜23）
+
+**Step 18 — 2026-09-08 注文の Domain ロジック + 例外**
+- `ShippingFeeCalculator`（`>= 20000` で 0、それ以外 800、config 参照、Eloquent 非依存）
+- `OrderNumberGenerator`（`EC-YYYYMMDD-NNNN`、当日の最大連番+1、衝突は最大20回リトライ、UNIQUE 制約が最終防衛線）
+- `InsufficientStockException` / `UnpublishedProductException`（`render()` で 422）
+- Unit テスト（送料の境界、採番の初回/連番/日跨ぎ/飛び番。採番は `uses(RefreshDatabase::class)`）
+
+**Step 19 — 2026-09-08 注文作成 API（POST /api/orders）**
+- `CreateOrder` Action: トランザクションで variant を `lockForUpdate`（product + 主画像込み）→ 在庫検証 → 未公開検証 → subtotal をサーバー再計算（**クライアント送信の金額は無視**）→ `orders`(pending) + `order_items` 作成 → 在庫減算 → `save_address` 指定なら addresses にも保存（初回は default）
+- DTO 3種（`CreateOrderInput` / `CartLineInput` / `ShippingAddressInput`）。`StoreOrderRequest` は `address_id` を `Rule::exists->where(user_id)`
+- `verified` ミドルウェアでメール認証必須
+- Feature テスト11本
+
+**Step 20 — 2026-09-08 注文取得 API**
+- `GET /api/orders` … `forUser` + `withSum('items','quantity')` + `recentFirst`、`OrderSummaryResource`（`item_count` は quantity 合計）
+- `GET /api/orders/{order_number}` … 本人のみ、他人・不明は 404、`items.product:id,slug` + `payment` を eager load
+- Feature テスト6本
+
+**Step 21 — 2026-09-08 StripeService + PaymentIntent 作成 API**
+- `stripe/stripe-php` 導入。`StripeService`（`StripeClient` ラッパー：`createPaymentIntent` / `retrievePaymentIntent` / `refund` / `constructWebhookEvent`）。`AppServiceProvider` で `StripeClient` を DI（キー未設定でも構築は通す＝空文字ではなく `[]` を渡す）
+- `CreatePaymentIntent` Action: pending チェック（非 pending 409）→ キー未設定 503 → **現在のカタログ価格で total 再計算し一致確認**（ズレ 409）→ `payments` 無ければ作成・あれば retrieve（`canceled` なら作り直し）
+- `POST /api/checkout/payment-intent`（auth + verified、他人の注文 404）
+- `phpunit.xml` に STRIPE ダミーキー。テストは `StripeService` をモック
+- Feature テスト8本
+
+**Step 22 — 2026-09-08 Stripe Webhook + 注文確定**
+- `POST /api/stripe/webhook`（**認証なし・署名検証のみ・Sanctum の外**）。backend の唯一の公開エンドポイント
+- 署名不正 400、`StripeEvent::claim` で冪等（重複 200 no-op、前回失敗の `processed_at` null は再処理可）、処理失敗は 500 で Stripe に再送させる
+- `payment_intent.succeeded` → `MarkOrderPaid`: `order_id` で `lockForUpdate`、`pending` 以外は no-op、payment=succeeded + charge_id、order=paid + paid_at、`SendOrderConfirmationJob` dispatch
+- `OrderConfirmationMail`（Markdown、明細テーブル）
+- `tests/Support/StripeFixtures`（疑似イベント生成、PSR-4）。Feature テスト6本
+
+**Step 23 — 2026-09-08 Webhook の失敗・キャンセル・返金イベント**
+- `RestockOrder` Action（明細ごとに `lockForUpdate` + `increment`、削除済み variant はスキップ）
+- `HandlePaymentFailed`（`last_error` 更新、注文は pending のまま）/ `CancelOrderPayment`（pending のみ cancelled + cancelled_at + RestockOrder）/ `RecordRefund`（`refunded_at` が null のときだけ、返金追認）
+- Feature テスト4本
+
+### Phase 4 完了
+注文作成（pending・在庫引き当て）/ 注文取得 / PaymentIntent 作成 / Webhook（succeeded → paid + 確認メール、failed / canceled / refunded）が揃った。`php artisan test` 134 passed。実 Stripe キーでの E2E（`stripe listen`）はキー入手後（ユーザー方針）。次は注文ステータス state machine（admin）+ 管理 API + CMS。
