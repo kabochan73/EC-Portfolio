@@ -48,9 +48,12 @@ export async function apiFetch<T = unknown>(
     throw new Error("API_URL が未設定です（docker-compose.yml / .env.local を確認）");
   }
 
+  // 既定は毎回最新（個人化データ）。カタログ・CMS は呼び出し側が next: { tags, revalidate }
+  // を渡す。その場合は cache: 'no-store' を付けない（両者は排他。ISR タグが効かなくなる）。
+  const usesIsr = init?.next !== undefined;
+
   const res = await fetch(`${API_URL}${path}`, {
-    // 既定は毎回最新。カタログ読み取りは呼び出し側が next: { tags, revalidate } で上書きする
-    cache: "no-store",
+    ...(usesIsr ? {} : { cache: "no-store" as const }),
     ...init,
     headers: {
       Accept: "application/json",
