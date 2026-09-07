@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardControll
 use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Admin\ProductImageController as AdminProductImageController;
+use App\Http\Controllers\Api\Admin\SiteContentController as AdminSiteContentController;
 use App\Http\Controllers\Api\Admin\VariantController as AdminVariantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
@@ -17,7 +18,9 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SiteContentController;
 use App\Http\Controllers\Api\StripeWebhookController;
+use App\Models\SiteContent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +49,9 @@ Route::get('/products/{slug}', [ProductController::class, 'show']);
 
 // カート明細の再検証（/cart・/checkout 表示時。docs/03-api.md）
 Route::get('/cart/validate', [CartController::class, 'validate']);
+
+// トップページの CMS コンテンツ（docs/11-cms.md）
+Route::get('/content', [SiteContentController::class, 'index']);
 
 // --- 認証（公開） ---
 Route::post('/register', [AuthController::class, 'register']);
@@ -129,4 +135,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     // --- ダッシュボード ---
     Route::get('/stats', [AdminDashboardController::class, 'stats']);
+
+    // --- CMS（トップページのコンテンツ。docs/11-cms.md） ---
+    Route::get('/content', [AdminSiteContentController::class, 'index']);
+    Route::put('/content/{key}', [AdminSiteContentController::class, 'update'])->whereIn('key', SiteContent::KEYS);
+    Route::post('/content/{key}/images', [AdminSiteContentController::class, 'uploadImage'])->whereIn('key', SiteContent::KEYS);
 });
