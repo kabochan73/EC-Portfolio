@@ -28,6 +28,8 @@ services:
       - "5432:5432"
     volumes:
       - ecp-pgdata:/var/lib/postgresql/data
+      # 初回起動（空ボリューム）時に一度だけ実行。テスト用 DB(ecp_test) を作る
+      - ./backend/database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       # backend / queue コンテナが「DB が受付可能」になるまで待てるように
       test: ["CMD-SHELL", "pg_isready -U ecp -d ecp"]
