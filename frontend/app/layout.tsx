@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 
 import CartHydration from "@/components/providers/CartHydration";
+import QueryProvider from "@/components/providers/QueryProvider";
 
 import "./globals.css";
 
@@ -27,12 +28,13 @@ export default function RootLayout({
   return (
     <html lang="ja">
       {/* ここは <html><body> のシェルとフォント・globals だけ。
-          個別レイアウト（(shop) / admin）は children 側に入る。
-          QueryProvider は認証・カート再検証の Step で追加する。 */}
+          個別レイアウト（(shop) / admin）は children 側に入る。 */}
       <body className={`${geistSans.variable} font-sans antialiased`}>
-        {/* カートストア（localStorage）の復元をマウント後に走らせる。何も描画しない。 */}
-        <CartHydration />
-        {children}
+        <QueryProvider>
+          {/* カートストア（localStorage）の復元をマウント後に走らせる。何も描画しない。 */}
+          <CartHydration />
+          {children}
+        </QueryProvider>
       </body>
     </html>
   );
