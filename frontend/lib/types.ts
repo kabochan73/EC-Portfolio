@@ -84,6 +84,19 @@ export type ProductDetail = {
   related: ProductSummary[];
 };
 
+// カート（Zustand persist）に持つ「追加時点の表示スナップショット」（docs/08 §5）。
+// 実際の在庫・価格は /cart・/checkout 表示時に GET /api/cart/validate で再検証する。
+export type CartItem = {
+  variantId: number;
+  productSlug: string;
+  productName: string;
+  size: string;
+  color: string | null;
+  unitPrice: number;
+  quantity: number;
+  imageUrl: string | null;
+};
+
 // GET /api/cart/validate の1行（backend/app/Http/Controllers/Api/Shop/CartController）
 export type CartLineValidation = {
   variant_id: number;
