@@ -1,0 +1,163 @@
+# デプロイ構成（Railway + Docker）（R3）
+
+## サービス構成
+
+| サービス | 中身 | 公開 | ポート |
+|---|---|---|---|
+| `frontend` | Next.js（standalone 出力）を Dockerfile でビルド | ✅ 公開ドメイン | 3000 |
+| `backend` | Laravel。`serversideup/php:8.4-fpm-nginx` を薄い Dockerfile でラップ | ⚠️ 公開ドメインあり（ただし `/api/stripe/webhook` 以外は CORS/BFF 前提。下記） | 8080 |
+| `queue` | 同じ backend イメージを `php artisan queue:work` で起動（**R3 追加**） | 内部のみ | - |
+| `postgres` | Railway の PostgreSQL | 内部のみ | 5432 |
+| `bucket` | Railway Storage Bucket（S3互換、private）。商品・CMS 画像 | 内部（S3 API） | - |
+
+### backend の公開について（R3 の変更点）
+
+R2 は「backend に公開ドメインを付けない（BFF のため不要）」だった。R3 は **Stripe Webhook が backend を直接叩く必要がある**ため、backend にも公開ドメインを付ける。攻撃面を絞るための対策:
+
+- 公開されるのは実質 `POST /api/stripe/webhook` のみ意味を持つ（他は BFF 経由前提で、ブラウザから直接呼んでも Cookie が無く 401、CORS は `FRONTEND_URL` のみ許可）
+- `/api/stripe/webhook` は署名検証（`STRIPE_WEBHOOK_SECRET`）で保護。署名不正は 400
+- レートリミット（Laravel の `throttle`）を webhook にも軽くかける（`throttle:60,1` 程度。Stripe の再送を邪魔しない範囲）
+- frontend → backend の内部通信は従来どおり `backend.railway.internal:8080`（公開ドメインは経由しない）
+
+`serversideup/php` は nginx + php-fpm を s6-overlay で1コンテナにまとめた本番向けイメージ。opcache / php-fpm チューニング済み・非root・healthcheck 付き。`8.4-fpm-nginx` 同梱拡張は `pdo_pgsql` `redis` `opcache` `zip` `mbstring` `curl` `sodium` など。**`intl` / `gd` / `bcmath` は非同梱**。R3 でも未使用（画像リサイズはしない、金額は integer 演算のみ）。
+
+## queue worker サービス（R3 追加）
+
+- backend と**同じイメージ**をデプロイし、起動コマンドだけ `php artisan queue:work --tries=3 --max-time=3600 --sleep=3` に差し替える
+- Railway では backend サービスを複製して「Custom Start Command」を設定、または `backend/` に `worker` 用の compose/Procfile を持たせる。R3 は **Railway 上で backend サービスを複製し start command を上書き**する運用（Dockerfile は共通）
+- `AUTORUN_*` は queue サービスでは **false**（migrate/config:cache は backend 側が起動時に1回やる。worker が重複して走らせない）
+- ジョブ: 4 種のメール送信（`docs/10`）。失敗は `failed_jobs` に落ちる。`php artisan queue:retry all` で再実行
+- worker が落ちてもリクエスト処理には影響しない（メールが遅延するだけ）。Railway の restart policy に任せる
+
+## リポジトリ構成
+
+```
+EC-Portfolio/
+├── docker-compose.yml        # ローカル開発（全サービス。docs/07）
+├── frontend/
+│   ├── Dockerfile            # 本番用（multi-stage, standalone）
+│   ├── Dockerfile.dev        # ローカル用（next dev）
+│   └── ...
+├── backend/
+│   ├── Dockerfile            # 本番用（FROM serversideup/php の薄いラッパ。backend / queue 共用）
+│   └── ...
+└── docs/
+```
+
+Railway では各サービスの Root Directory を `frontend` / `backend` に設定。`queue` は `backend` を Root Directory にして Start Command を上書き。
+
+## 環境変数
+
+### frontend
+| 変数 | 値（本番） | 用途 |
+|---|---|---|
+| `API_URL` | `http://backend.railway.internal:8080` | サーバー側から Laravel を呼ぶ |
+| `NEXT_PUBLIC_SITE_URL` | 公開ドメイン | 絶対URL生成 |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` / `pk_live_...` | Payment Element の初期化（クライアント可） |
+| `BUCKET_ENDPOINT` / `BUCKET_ACCESS_KEY_ID` / `BUCKET_SECRET_ACCESS_KEY` / `BUCKET_NAME` / `BUCKET_REGION` | `${{Bucket.*}}` | `/media` プロキシの GetObject |
+| `NODE_ENV` | `production` | |
+
+### backend（`queue` サービスも同じセットを共有）
+| 変数 | 値 | 用途 |
+|---|---|---|
+| `APP_KEY` | `base64:...`（`php artisan key:generate --show`） | |
+| `APP_ENV` | `production` | |
+| `APP_DEBUG` | `false` | |
+| `APP_URL` | backend 公開ドメイン | 署名 URL・メールリンクの base |
+| `FRONTEND_URL` | frontend 公開ドメイン | CORS 許可元・メール内リンクの base |
+| `DB_CONNECTION` | `pgsql` | |
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | |
+| `LOG_CHANNEL` | `stderr` | Railway ログ |
+| `SESSION_DRIVER` | `array` | セッション不使用（トークン認証） |
+| `CACHE_STORE` | `database` | Redis なし |
+| `QUEUE_CONNECTION` | `database` | jobs テーブル |
+| `SSL_MODE` | `off` | serversideup。TLS は Railway エッジ終端 |
+| `PHP_OPCACHE_ENABLE` | `1` | 本番は opcache 有効 |
+| `AUTORUN_ENABLED` | `true`（backend）/ `false`（queue） | |
+| `AUTORUN_LARAVEL_MIGRATION` | `true`（backend のみ） | 起動時 `migrate --force` |
+| `AUTORUN_LARAVEL_MIGRATION_ISOLATION` | `true` | 多重起動時に1つだけ migrate |
+| `AUTORUN_LARAVEL_CONFIG_CACHE` / `ROUTE_CACHE` / `EVENT_CACHE` | `true`（backend のみ） | |
+| `AUTORUN_LARAVEL_STORAGE_LINK` | `false` | S3 配信なので不要 |
+| `FILESYSTEM_DISK` | `s3` | 画像を Railway バケットへ |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` / `AWS_BUCKET` / `AWS_ENDPOINT` | `${{Bucket.*}}` | |
+| `AWS_USE_PATH_STYLE_ENDPOINT` | バケットの Credentials タブの指示に従う | |
+| `STRIPE_SECRET_KEY` | `sk_test_...` / `sk_live_...` | stripe-php |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Webhook 署名検証 |
+| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | `/api/checkout/payment-intent` のレスポンスに載せる |
+| `MAIL_MAILER` | `resend` | |
+| `RESEND_API_KEY` | `re_...` | |
+| `MAIL_FROM_ADDRESS` | `noreply@<検証済みドメイン>` | |
+| `MAIL_FROM_NAME` | `EC-PORTFOLIO` | |
+
+## デプロイ時のマイグレーション
+
+serversideup の Laravel Automations（`AUTORUN_*`）に任せる。backend サービス起動時に:
+```
+php artisan migrate --force
+php artisan config:cache && route:cache && event:cache
+```
+- `db:seed` は AUTORUN に無い。初期データは手動: `railway run php artisan db:seed --force`（初回のみ）
+- `queue` サービスは AUTORUN 全 false。backend が先に上がる保証は無いので、`migrate` の完了前に worker が起動しても `--tries` と restart で吸収される
+
+## Stripe Webhook 登録
+
+1. Stripe ダッシュボード → Developers → Webhooks → Add endpoint
+2. URL: `https://<backend 公開ドメイン>/api/stripe/webhook`
+3. イベント: `payment_intent.succeeded` / `payment_intent.payment_failed` / `payment_intent.canceled` / `charge.refunded`
+4. 表示される `whsec_...` を `STRIPE_WEBHOOK_SECRET` に設定
+5. ローカルは `stripe listen --forward-to localhost:8000/api/stripe/webhook`（`docs/07` / `docs/09`）
+
+## Resend（メール本番）
+
+- Resend にドメインを追加し DNS（SPF / DKIM）を検証（キー入手後の作業。それまでは `MAIL_MAILER=log` でも動く）
+- 無料枠内・自分宛のテストのみ（ポートフォリオなので実顧客はいない）
+- `MAIL_FROM_ADDRESS` は検証済みドメインのアドレス
+
+## backend/Dockerfile 方針
+
+```dockerfile
+FROM serversideup/php:8.4-fpm-nginx
+USER www-data
+COPY --chown=www-data:www-data . /var/www/html
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+# nginx(8080) と php-fpm は s6-overlay が起動。CMD は上書きしない（backend）
+# queue サービスは Railway 側で Start Command を
+#   php artisan queue:work --tries=3 --max-time=3600
+# に上書きする
+```
+
+## frontend/Dockerfile 方針（Next.js standalone）
+
+```dockerfile
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+FROM node:22-alpine AS run
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+`NEXT_PUBLIC_*` はビルド時に埋め込まれる。Railway の build 環境変数に `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` / `NEXT_PUBLIC_SITE_URL` を設定しておく。
+
+## 本番と ローカルの差分
+
+| | ローカル | 本番（Railway） |
+|---|---|---|
+| backend / queue イメージ | serversideup を直接 + マウント | 同イメージにコード焼き込み |
+| opcache | 0 | 1 |
+| 起動時 artisan | 手動 | `AUTORUN_*`（backend のみ） |
+| frontend | `next dev` | `next start`（standalone） |
+| メール | Mailpit（SMTP） | Resend |
+| Stripe webhook | `stripe listen` が転送 | Stripe → backend 公開 URL 直 |
