@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\EmailVerificationController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +45,10 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware(['signed:relative', 'throttle:6,1'])
     ->name('verification.verify');
+
+// パスワードリセット
+Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:6,1');
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
 
 // --- 認証必須 ---
 Route::middleware('auth:sanctum')->group(function () {

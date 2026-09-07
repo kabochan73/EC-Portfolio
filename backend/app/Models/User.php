@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use App\Jobs\SendEmailVerificationJob;
+use App\Jobs\SendPasswordResetJob;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -53,6 +54,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendEmailVerificationNotification(): void
     {
         SendEmailVerificationJob::dispatch($this->id);
+    }
+
+    /**
+     * パスワード再設定通知も自前 Mailable（docs/10-email.md）。Password broker から呼ばれる。
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        SendPasswordResetJob::dispatch($this->id, $token);
     }
 
     /** @return HasMany<Address, $this> */
