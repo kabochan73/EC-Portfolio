@@ -14,7 +14,7 @@
 
 | パス | 内容 |
 |---|---|
-| `/admin` | ダッシュボード（注文件数・売上・在庫僅少/切れの商品数・最近の注文5件） |
+| `/admin` | ダッシュボード（注文件数・pending 件数・在庫僅少/切れの商品数・最近の注文5件）。**売上は表示しない**（API は `revenue_total` を返すが管理画面には出さない。2026-09-08 ユーザー判断） |
 | `/admin/products` | 商品一覧（未公開含む、検索・カテゴリ絞り込み・ページング） |
 | `/admin/products/new` | 商品新規作成 |
 | `/admin/products/[id]` | 商品編集（基本情報／画像／バリアント／公開フラグ） |
@@ -58,7 +58,7 @@
 ### ダッシュボード
 | メソッド | パス | 返却 |
 |---|---|---|
-| GET | `/api/admin/stats` | `{ orders_count, revenue_total, pending_count, low_stock_count, sold_out_count, recent_orders: [...] }`。`revenue_total` = `status IN (paid, shipped, completed)` の `total` 合計（R3 で復活。R2 は決済が無く意味のない数字なので出さなかった） |
+| GET | `/api/admin/stats` | `{ orders_count, revenue_total, pending_count, low_stock_count, sold_out_count, recent_orders: [...] }`。`revenue_total` = `status IN (paid, shipped, completed)` の `total` 合計。**API には含めるがフロントの管理ダッシュボードには表示しない**（2026-09-08 ユーザー判断） |
 
 ### 商品
 | メソッド | パス | 備考 |
