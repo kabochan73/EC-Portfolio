@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
@@ -84,4 +85,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- 決済（要メール認証） ---
     Route::post('/checkout/payment-intent', [CheckoutController::class, 'paymentIntent'])->middleware('verified');
+});
+
+// --- 管理画面（admin ロールのみ。docs/05-admin.md） ---
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // reorder は {category} より先に登録する（静的パスを先にマッチさせる）
+    Route::put('/categories/reorder', [AdminCategoryController::class, 'reorder']);
+    Route::get('/categories', [AdminCategoryController::class, 'index']);
+    Route::post('/categories', [AdminCategoryController::class, 'store']);
+    Route::put('/categories/{category}', [AdminCategoryController::class, 'update']);
+    Route::delete('/categories/{category}', [AdminCategoryController::class, 'destroy']);
 });
