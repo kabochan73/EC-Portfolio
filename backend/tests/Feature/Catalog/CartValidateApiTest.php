@@ -74,8 +74,8 @@ it('marks an unknown variant id as unavailable', function () {
 it('validates several variants at once, preserving request order', function () {
     $category = Category::factory()->create(['slug' => 'tops']);
     $product = Product::factory()->for($category)->create();
-    $a = ProductVariant::factory()->for($product)->create(['stock' => 3]);
-    $b = ProductVariant::factory()->for($product)->create(['stock' => 0]);
+    $a = ProductVariant::factory()->for($product)->create(['size' => 'S', 'stock' => 3]);
+    $b = ProductVariant::factory()->for($product)->create(['size' => 'M', 'stock' => 0]);
 
     validateCart([$b->id, $a->id, 123456])
         ->assertOk()
