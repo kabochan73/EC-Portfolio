@@ -6,8 +6,7 @@ use App\Models\User;
 
 /**
  * 氏名・メールの更新（docs/03-api.md PUT /api/me）。
- * メールが変わったら email_verified_at を null に戻す
- * （再認証メールの dispatch は Step 16 でここに足す）。
+ * メールが変わったら email_verified_at を null に戻し、新アドレスへ再認証メールを送る。
  */
 final class UpdateProfile
 {
@@ -23,6 +22,10 @@ final class UpdateProfile
         }
 
         $user->save();
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
 
         return $user;
     }

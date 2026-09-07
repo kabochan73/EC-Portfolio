@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Jobs\SendEmailVerificationJob;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -43,6 +44,15 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
+    }
+
+    /**
+     * 検証メールは自前 Mailable（docs/10-email.md）。標準の Notification 経路ではなく
+     * キュージョブで送る。
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        SendEmailVerificationJob::dispatch($this->id);
     }
 
     /** @return HasMany<Address, $this> */
