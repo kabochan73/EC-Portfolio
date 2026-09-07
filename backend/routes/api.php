@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,11 @@ Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 've
 // パスワードリセット
 Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:6,1');
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
+
+// Stripe Webhook … 認証なし・署名検証のみ（docs/09）。backend の唯一の公開エンドポイント
+Route::post('/stripe/webhook', StripeWebhookController::class)
+    ->middleware('throttle:60,1')
+    ->name('stripe.webhook');
 
 // --- 認証必須 ---
 Route::middleware('auth:sanctum')->group(function () {
