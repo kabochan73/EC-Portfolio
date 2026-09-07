@@ -16,6 +16,7 @@ export default function LoginForm() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
+  const justReset = searchParams.get("reset") === "1";
 
   const {
     register,
@@ -49,6 +50,12 @@ export default function LoginForm() {
   return (
     <div className="mx-auto max-w-sm px-6 py-24">
       <h1 className="text-center text-2xl tracking-[0.15em] uppercase">Login</h1>
+
+      {justReset && (
+        <p className="mt-6 text-center text-xs tracking-widest text-graphite uppercase">
+          パスワードを変更しました。新しいパスワードでログインしてください。
+        </p>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-12 space-y-6">
         <Field

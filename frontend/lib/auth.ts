@@ -3,7 +3,6 @@
 // - Cookie 管理: トークンは httpOnly Cookie に入れ、ブラウザの JS からは触れない
 // - Laravel 呼び出し: app/bff/**\/route.ts を薄く保てるよう実処理はここに置く
 //
-// パスワードリセットの関数は Step 40 でここに足す。
 // ─────────────────────────────────────────────────────────────
 
 import { cookies } from "next/headers";
@@ -14,8 +13,10 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { SESSION_COOKIE_NAME } from "@/lib/constants";
 import type {
   ApiResource,
+  ForgotPasswordPayload,
   LoginPayload,
   RegisterPayload,
+  ResetPasswordPayload,
   UpdatePasswordPayload,
   UpdateProfilePayload,
   User,
@@ -127,6 +128,24 @@ export async function verifyEmail(
 
   await apiFetch<void>(`/api/email/verify/${params.id}/${params.hash}?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+/** POST /api/forgot-password。存在の有無に関わらず常に成功（中立メッセージ） */
+export async function sendPasswordReset(payload: ForgotPasswordPayload): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+/** POST /api/reset-password。失敗（無効/期限切れトークン）は 422 { errors: { email } } */
+export async function resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 }
 
