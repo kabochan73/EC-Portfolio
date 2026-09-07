@@ -30,10 +30,10 @@ function productPayload(Category $category, array $overrides = []): array
 
 it('lists published and unpublished products with stock totals', function () {
     $category = Category::factory()->create(['slug' => 'tops']);
-    $published = Product::factory()->for($category)->create(['name' => 'Shown']);
+    $published = Product::factory()->for($category)->create(['name' => 'Shown', 'position' => 0]);
     ProductVariant::factory()->for($published)->create(['size' => 'S', 'stock' => 4]);
     ProductVariant::factory()->for($published)->create(['size' => 'M', 'stock' => 6]);
-    Product::factory()->for($category)->unpublished()->create(['name' => 'Hidden']);
+    Product::factory()->for($category)->unpublished()->create(['name' => 'Hidden', 'position' => 1]);
 
     $this->actingAs(adminUser())
         ->getJson('/api/admin/products')
