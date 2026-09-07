@@ -257,3 +257,62 @@
 
 ### Phase 4 完了
 注文作成（pending・在庫引き当て）/ 注文取得 / PaymentIntent 作成 / Webhook（succeeded → paid + 確認メール、failed / canceled / refunded）が揃った。`php artisan test` 134 passed。実 Stripe キーでの E2E（`stripe listen`）はキー入手後（ユーザー方針）。次は注文ステータス state machine（admin）+ 管理 API + CMS。
+
+### Phase 6 — 管理 API + CMS（Step 24〜32）
+
+**Step 24 — 2026-09-08 管理 API の土台 + カテゴリ管理**
+- `EnsureAdmin` ミドルウェア（`role != admin` は 403）、`bootstrap/app.php` で `admin` エイリアス。`CategoryInUseException`（所属商品ありの削除 409）
+- `Admin/Category` の Create/Update/Delete/Reorder Action、`Admin/CategoryController`
+- routes に admin プレフィックスグループ（`auth:sanctum` + `admin`）、`reorder` を `{category}` より先に
+- Feature テスト9本
+
+**Step 25 — 2026-09-08 商品管理 CRUD（基本情報）**
+- `Admin/Product` の Create/Update/Delete Action、`Store/UpdateProductRequest`（slug unique、price>=1、size_chart は nullable array で形も検証）
+- `Admin/ProductListResource`（未公開含む要約 + `total_stock`/`variant_count`、`withSum`/`withCount` 前提で null は 0）、`Admin/ProductResource`（編集フォーム用の生値）
+- `Admin/ProductController`（index は `?q` ilike 部分一致・`?category` slug・20件ページング）
+- 詰まり: `ProductListResource` が variant なし商品で `$this->variants->sum()` に lazy load 発火 → `?? 0` に
+- Feature テスト9本
+
+**Step 26 — 2026-09-08 商品画像管理 + StorageService**
+- `league/flysystem-aws-s3-v3` 導入（`config/filesystems.php` は既定で endpoint/path_style 対応済み）
+- `StorageService`（`put` で `{prefix}/{ulid}.{ext}` キーを返す / delete / deleteMany / exists）
+- `Admin/ProductImage` の Create/Delete/Reorder Action（reorder はその商品の画像 ID を過不足なく指定させ、他商品混入は 422）。`DeleteProduct` は削除時にバケット実体も掃除
+- `ProductImageResource` に `id` 追加。画像 3 ルート（reorder は静的パス）
+- 詰まり: gd 非搭載のためテストは `UploadedFile::fake()->create(..., 'image/jpeg')`（`->image()` は GD 必須）。`ProductAdminTest` の在庫合計フレークも修正（position がランダムで data.0 が variant なし商品になる回があった）
+- Feature テスト8本 + **実 MinIO へのアップロード→削除ラウンドトリップを手動確認**
+
+**Step 27 — 2026-09-08 バリアント管理**
+- `Admin/Variant` の Create/Update/Delete Action（作成は position 自動採番、更新は size 不変、削除は order_items SET NULL）
+- `Store/UpdateVariantRequest` は `withValidator` で size+color 複合ユニークを部分 UNIQUE と同条件で事前チェック（color null / not-null を出し分け）→ DB 例外にせずフォーム向け 422
+- `Admin/ProductResource` + `Product@show` に images + variants を eager load（編集ページ用）
+- Feature テスト9本
+
+**Step 28 — 2026-09-08 注文管理の閲覧**
+- `GET /api/admin/orders`（全ユーザー横断、`?status`（`Rule::enum`）、新しい順・20件、`withSum` で item_count）、`OrderListResource` は顧客情報を含む
+- `GET /api/admin/orders/{order_number}`（明細・配送先・顧客・決済情報、不明は 404）
+- Feature テスト7本
+
+**Step 29 — 2026-09-08 注文ステータス state machine**
+- `TransitionOrderStatus` Action（遷移の唯一の入口。`lockForUpdate` → `canTransitionTo` 判定 → 副作用）: `*→cancelled`(pending/paid) は在庫戻し、`paid→cancelled` はさらに Stripe 返金、`shipped→cancelled` は在庫戻さない（返品は手動）、`paid→shipped` は shipped_at + 発送通知（`SendOrderShippedJob`）、`shipped→completed` は副作用なし
+- `InvalidOrderTransitionException`（422）。`UpdateOrderStatusRequest` は admin が指定できるのを shipped/completed/cancelled に限定（`pending→paid` は Webhook）
+- Feature テスト9本
+
+**Step 30 — 2026-09-08 会員一覧 + ダッシュボード統計**
+- `GET /api/admin/customers`（`role=customer`、`withCount('orders')`、`?q` name/email ilike、20件）
+- `GET /api/admin/stats` … `orders_count` / **`revenue_total`**（`paid`/`shipped`/`completed` の total 合計、R2 で削った売上を復活）/ `pending_count` / `sold_out_count`・`low_stock_count`（公開商品・全 variant 合算）/ `recent_orders`（直近5）
+- `OrderListResource`/`OrderSummaryResource` の `item_count` を `?? 0` に（明細なし注文で lazy load 発火）
+- Feature テスト6本
+
+**Step 31 — 2026-09-08 軽量 CMS API**
+- 公開 `GET /api/content` … 4 キーを `SiteContent::defaults()` で補完（`array_replace` で top-level を埋め、`lookbook.images`/`about.blocks` は保存値が丸ごと勝つ）
+- 管理 `GET/PUT /api/admin/content(/{key})` … `UpdateSiteContent` Action（`updated_by`）、`UpdateSiteContentRequest` は key ごとに rules 出し分け
+- `POST /api/admin/content/{key}/images` … `content/{key}/{ulid}.ext` に保存、`{ url: "/media/..." }`。`{key}` は `whereIn` で不正なら 404
+- 画像 URL は data JSON に `/media/...` 形式で直接持たせる（CMS の JSON は自由形式なので商品画像とは方式が違う）
+- Feature テスト10本
+
+**Step 32 — 2026-09-08 メール本文のモノトーン化**
+- `vendor:publish --tag=laravel-mail` からテーマ CSS だけ残し（他は既定にフォールバック）、`default.css` を 4 色に（ボタン=黒背景・角丸0・影なし・全大文字、リンク=黒下線、パネル/テーブル=ボーダーのみ）
+- Mailpit で 4 通の描画を確認（`border-radius:0` / `#000000` / uppercase 適用）
+
+### Phase 6 完了 = バックエンドの機能実装 完了
+公開カタログ / 認証・会員 / 住所 / 注文・決済・Webhook / 管理 API 一式（カテゴリ・商品・画像・バリアント・注文・state machine・会員・ダッシュボード）/ CMS / メール（4種、モノトーン）。**`php artisan test` 201 passed（595 assertions）**。次は フロントエンド（Next.js）。
