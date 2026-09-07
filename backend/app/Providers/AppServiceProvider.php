@@ -7,12 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Stripe\StripeClient;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // StripeService が受け取る StripeClient。secret key はここで注入する。
+        // キー未設定でも構築だけは通す（[] を渡す）。実際の API 呼び出し前に
+        // CreatePaymentIntent 等が 503 を返す。
+        $this->app->bind(StripeClient::class, function () {
+            $secret = (string) config('services.stripe.secret');
+
+            return new StripeClient($secret === '' ? [] : $secret);
+        });
     }
 
     public function boot(): void

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PasswordResetController;
@@ -74,4 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrderController::class, 'store'])->middleware('verified'); // 作成は要メール認証
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
+
+    // --- 決済（要メール認証） ---
+    Route::post('/checkout/payment-intent', [CheckoutController::class, 'paymentIntent'])->middleware('verified');
 });
