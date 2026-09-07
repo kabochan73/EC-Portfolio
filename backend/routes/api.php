@@ -70,6 +70,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
     Route::post('/addresses/{address}/default', [AddressController::class, 'setDefault']);
 
-    // --- 注文（要メール認証） ---
-    Route::post('/orders', [OrderController::class, 'store'])->middleware('verified');
+    // --- 注文 ---
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('verified'); // 作成は要メール認証
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
 });

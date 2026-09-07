@@ -7,7 +7,12 @@ use App\Actions\Order\CreateOrderInput;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
+use App\Http\Resources\OrderSummaryResource;
+use App\Models\Order;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class OrderController extends Controller
 {
@@ -23,5 +28,33 @@ class OrderController extends Controller
         );
 
         return OrderResource::make($order)->response()->setStatusCode(201);
+    }
+
+    /** GET /api/orders … 本人の注文一覧（新しい順・要約）。 */
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        $orders = Order::query()
+            ->forUser($request->user())
+            ->withSum('items as items_quantity_total', 'quantity')
+            ->recentFirst()
+            ->get();
+
+        return OrderSummaryResource::collection($orders);
+    }
+
+    /** GET /api/orders/{order_number} … 本人の注文詳細。他人の番号は 404。 */
+    public function show(Request $request, string $orderNumber): OrderResource
+    {
+        $order = Order::query()
+            ->forUser($request->user())
+            ->with(['items.product:id,slug', 'payment'])
+            ->where('order_number', $orderNumber)
+            ->first();
+
+        if ($order === null) {
+            throw new NotFoundHttpException('Order not found.');
+        }
+
+        return OrderResource::make($order);
     }
 }
