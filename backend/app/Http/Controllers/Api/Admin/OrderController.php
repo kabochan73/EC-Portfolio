@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Actions\Admin\Order\TransitionOrderStatus;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Order\UpdateOrderStatusRequest;
 use App\Http\Resources\Admin\OrderListResource;
 use App\Http\Resources\Admin\OrderResource;
 use App\Models\Order;
@@ -45,5 +47,19 @@ class OrderController extends Controller
         }
 
         return OrderResource::make($order);
+    }
+
+    /** PUT /api/admin/orders/{order_number}/status … state machine（docs/02）。不正遷移は 422。 */
+    public function updateStatus(UpdateOrderStatusRequest $request, string $orderNumber, TransitionOrderStatus $transitionOrderStatus): OrderResource
+    {
+        $order = Order::where('order_number', $orderNumber)->first();
+
+        if ($order === null) {
+            throw new NotFoundHttpException('Order not found.');
+        }
+
+        $updated = $transitionOrderStatus->execute($order, OrderStatus::from($request->string('status')->toString()));
+
+        return OrderResource::make($updated->load(['user:id,name,email', 'items.product:id,slug', 'payment']));
     }
 }

@@ -120,4 +120,5 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // --- 注文（全ユーザー横断） ---
     Route::get('/orders', [AdminOrderController::class, 'index']);
     Route::get('/orders/{orderNumber}', [AdminOrderController::class, 'show']);
+    Route::put('/orders/{orderNumber}/status', [AdminOrderController::class, 'updateStatus']);
 });
