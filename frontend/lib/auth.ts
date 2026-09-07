@@ -3,7 +3,7 @@
 // - Cookie 管理: トークンは httpOnly Cookie に入れ、ブラウザの JS からは触れない
 // - Laravel 呼び出し: app/bff/**\/route.ts を薄く保てるよう実処理はここに置く
 //
-// メール認証・パスワードリセットの関数は Step 39 / 40 でここに足す。
+// パスワードリセットの関数は Step 40 でここに足す。
 // ─────────────────────────────────────────────────────────────
 
 import { cookies } from "next/headers";
@@ -101,6 +101,32 @@ export async function updatePassword(
     method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+}
+
+/** POST /api/email/verification-notification。検証メール再送。認証済みなら Laravel 側で 204 */
+export async function resendVerificationEmail(token: string): Promise<void> {
+  await apiFetch<void>("/api/email/verification-notification", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+/**
+ * GET /api/email/verify/{id}/{hash}?expires=&signature=（signed:relative）。
+ * フロントの /verify-email 着地時、クエリを組み立ててここから叩く。成功時 204。
+ */
+export async function verifyEmail(
+  token: string,
+  params: { id: string; hash: string; expires: string; signature: string },
+): Promise<void> {
+  const query = new URLSearchParams({
+    expires: params.expires,
+    signature: params.signature,
+  }).toString();
+
+  await apiFetch<void>(`/api/email/verify/${params.id}/${params.hash}?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
