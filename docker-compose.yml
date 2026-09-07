@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────
+# ローカル開発環境。R3 は frontend / backend / queue も含めて「全部 Docker」
+# （docs/07-local-dev.md）。一度に全部は作らず、段階的に足していく:
+#
+#   Step 2 : db / minio / mailpit だけ。まず疎通を確認する  ← いまここ
+#   Step 3 : backend（serversideup/php）を追加
+#   Step 4 : frontend（next dev）を追加
+#   Step 5 : queue worker を追加
+#
+# 使い方:
+#   docker compose up -d        # 起動
+#   docker compose down         # 停止（データは volume に残る）
+#   docker compose down -v      # データごと破棄
+# ─────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL ───────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: ecp-db
+    environment:
+      # backend/.env の DB_DATABASE / DB_USERNAME / DB_PASSWORD と一致させること
+      POSTGRES_DB: ecp
+      POSTGRES_USER: ecp
+      POSTGRES_PASSWORD: ecpsecret
+    ports:
+      # ホスト側 5432 → コンテナ 5432。ホスト（TablePlus 等）から localhost:5432 で覗ける
+      - "5432:5432"
+    volumes:
+      - ecp-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # backend / queue コンテナが「DB が受付可能」になるまで待てるように
+      test: ["CMD-SHELL", "pg_isready -U ecp -d ecp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── MinIO（S3 互換ストレージ）─────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: ecp-minio
+    command: server /data --console-address ":9001"
+    environment:
+      # ルート資格情報。backend/.env と frontend/.env.local の AWS_* / BUCKET_* に使う
+      # （ユーザー名は3文字以上、パスワードは8文字以上が MinIO の必須条件）
+      MINIO_ROOT_USER: ecp
+      MINIO_ROOT_PASSWORD: ecpsecret
+    ports:
+      - "9000:9000"   # S3 API（Laravel / Next.js からのアクセス先）
+      - "9001:9001"   # 管理コンソール（ブラウザで http://localhost:9001 ）
+    volumes:
+      - ecp-minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── バケット初期化（使い捨て）─────────────────────────────
+  # minio が healthy になったら 1 回だけ実行してバケットを作る。
+  # 本番の Railway バケットは private なので、ここでも公開設定はしない。
+  createbuckets:
+    image: minio/mc:latest
+    container_name: ecp-createbuckets
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ecp ecpsecret &&
+      mc mb --ignore-existing local/ec-portfolio-media &&
+      echo '✅ bucket ec-portfolio-media ready';
+      "
+    restart: "no"
+
+  # ── Mailpit（ローカルの SMTP 受信箱。R3 追加）──────────────
+  # 送信したメールはすべてここで受信し、Web UI（http://localhost:8025）で確認する。
+  # 実際には誰にも届かない。本番は Resend（docs/10-email.md）。
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: ecp-mailpit
+    environment:
+      MP_MAX_MESSAGES: "500"
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "8025:8025"   # Web UI
+      # SMTP(1025) はコンテナ間通信のみ。ホストには公開しない
+
+# ── 永続ボリューム ─────────────────────────────────────────
+volumes:
+  ecp-pgdata:
+  ecp-minio:
