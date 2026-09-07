@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProductDetailResource;
 use App\Http\Resources\ProductSummaryResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ProductController extends Controller
 {
@@ -47,5 +49,34 @@ class ProductController extends Controller
         }
 
         return ProductSummaryResource::collection($query->get());
+    }
+
+    /**
+     * 公開商品の詳細。未公開・存在しない slug は 404（docs/03-api.md）。
+     */
+    public function show(string $slug): ProductDetailResource
+    {
+        $product = Product::query()
+            ->published()
+            ->with(['category', 'images', 'variants'])
+            ->where('slug', $slug)
+            ->first();
+
+        if ($product === null) {
+            throw new NotFoundHttpException('Product not found.');
+        }
+
+        // related … 同カテゴリの他の公開商品を position 順に全件（件数上限なし。docs/01）
+        $related = Product::query()
+            ->published()
+            ->with(['category', 'images', 'variants'])
+            ->where('category_id', $product->category_id)
+            ->whereKeyNot($product->id)
+            ->ordered()
+            ->get();
+
+        $product->setRelation('relatedProducts', $related);
+
+        return ProductDetailResource::make($product);
     }
 }
