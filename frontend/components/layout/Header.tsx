@@ -1,14 +1,13 @@
 import Link from "next/link";
 
+import AccountLink from "./AccountLink";
 import CartCount from "./CartCount";
 
 /**
  * ヘッダーは常に白背景・黒文字・下ボーダー固定（透過なし。docs/01-sitemap-pages.md）。
  * 中央ナビ・検索は置かない。ロゴ ＋ ACCOUNT ＋ CART のみ。
  * 項目が少ないのでモバイルもハンバーガーにせず同じ1行バーをそのまま使う。
- *
  * fixed で常に画面上部に重ねる。本文側は (shop)/layout.tsx の pt-16 で高さを避ける。
- * Account のログイン状態表示は認証(Step 38)で AccountLink に差し替える。
  */
 export default function Header() {
   return (
@@ -22,9 +21,7 @@ export default function Header() {
         </Link>
 
         <nav className="flex items-center gap-4 text-xs tracking-[0.12em] uppercase sm:gap-6 sm:tracking-[0.15em]">
-          <Link href="/account" className="transition-opacity hover:opacity-60">
-            Account
-          </Link>
+          <AccountLink />
           <CartCount />
         </nav>
       </div>
