@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Webhook;
 
 use App\Actions\Payment\CancelOrderPayment;
 use App\Actions\Payment\HandlePaymentFailed;
@@ -20,7 +20,7 @@ use Throwable;
  * 認証なし・署名検証のみ。Stripe から直接叩かれるので BFF を挟めない
  * （backend の唯一の公開エンドポイント）。
  */
-class StripeWebhookController extends Controller
+class StripeController extends Controller
 {
     public function __invoke(Request $request, StripeService $stripe): Response
     {

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Shop;
 
 use App\Enums\StockStatus;
 use App\Http\Controllers\Controller;

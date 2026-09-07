@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Shop;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\ProductDetailResource;
-use App\Http\Resources\ProductSummaryResource;
+use App\Http\Resources\Shop\ProductDetailResource;
+use App\Http\Resources\Shop\ProductSummaryResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;

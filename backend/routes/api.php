@@ -1,6 +1,7 @@
 <?php
 
-use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\Account\AddressController;
+use App\Http\Controllers\Api\Account\ProfileController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
@@ -9,17 +10,16 @@ use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Api\Admin\ProductImageController as AdminProductImageController;
 use App\Http\Controllers\Api\Admin\SiteContentController as AdminSiteContentController;
 use App\Http\Controllers\Api\Admin\VariantController as AdminVariantController;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\CartController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\CheckoutController;
-use App\Http\Controllers\Api\EmailVerificationController;
-use App\Http\Controllers\Api\OrderController;
-use App\Http\Controllers\Api\PasswordResetController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\SiteContentController;
-use App\Http\Controllers\Api\StripeWebhookController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
+use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Order\CheckoutController;
+use App\Http\Controllers\Api\Order\OrderController;
+use App\Http\Controllers\Api\Shop\CartController;
+use App\Http\Controllers\Api\Shop\CategoryController;
+use App\Http\Controllers\Api\Shop\ProductController;
+use App\Http\Controllers\Api\Shop\SiteContentController;
+use App\Http\Controllers\Api\Webhook\StripeController;
 use App\Models\SiteContent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -67,7 +67,7 @@ Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->m
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
 
 // Stripe Webhook … 認証なし・署名検証のみ（docs/09）。backend の唯一の公開エンドポイント
-Route::post('/stripe/webhook', StripeWebhookController::class)
+Route::post('/stripe/webhook', StripeController::class)
     ->middleware('throttle:60,1')
     ->name('stripe.webhook');
 

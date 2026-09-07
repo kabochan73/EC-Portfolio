@@ -20,13 +20,13 @@
 | レイヤー | 置き場所 | 責務 |
 |---|---|---|
 | Route | `routes/api.php` | URL とコントローラの対応、ミドルウェア |
-| Controller | `app/Http/Controllers/Api`（`Admin/` サブ） | 入力を受け取り Action を呼び Resource を返す |
+| Controller | `app/Http/Controllers/Api/{Shop,Auth,Account,Order,Webhook,Admin}/` | 入力を受け取り Action を呼び Resource を返す |
 | FormRequest | `app/Http/Requests` | 形式的バリデーション + 認可 |
 | Action | `app/Actions` | ビジネスロジック1ユースケース。トランザクション境界 |
 | Domain クラス | `app/Domain` | Eloquent 非依存の純粋ロジック（送料計算・採番） |
 | Model | `app/Models` | リレーション・スコープ・キャスト |
 | Enum | `app/Enums` | 状態・区分の定義と振る舞い（**state machine もここ**） |
-| API Resource | `app/Http/Resources`（`Admin/` サブ） | レスポンス JSON 整形 |
+| API Resource | `app/Http/Resources/{Shop,Order,Account,Admin}/` | レスポンス JSON 整形。公開用と管理用は Admin/ で分ける |
 | Exception | `app/Exceptions` | ドメインエラー → HTTP 変換（`render()`） |
 | Job | `app/Jobs` | **キューに載る非同期処理（R3 追加）**。メール送信など |
 | Mailable | `app/Mail` | メール1通の定義（`docs/10`） |
@@ -97,7 +97,8 @@ final class StripeService
 ### Webhook ハンドラ（Controller は薄く）
 
 ```php
-class StripeWebhookController extends Controller
+// App\Http\Controllers\Api\Webhook\StripeController
+class StripeController extends Controller
 {
     public function __invoke(Request $request, StripeService $stripe): Response
     {
@@ -107,8 +108,8 @@ class StripeWebhookController extends Controller
             return response('invalid signature', 400);
         }
 
-        // 冪等: stripe_events に INSERT。重複なら即 200
-        if (! StripeEvent::record($event->id, $event->type)) {
+        // 冪等: stripe_events に claim。既に処理済みなら即 200
+        if (! StripeEvent::claim($event->id, $event->type)) {
             return response('already processed', 200);
         }
 
@@ -120,15 +121,15 @@ class StripeWebhookController extends Controller
             default                         => null, // 未対応は受け流す
         };
 
-        StripeEvent::markProcessed($event->id);
+        StripeEvent::complete($event->id);
         return response('ok', 200);
     }
 }
 ```
 
-- ルート: `Route::post('/stripe/webhook', StripeWebhookController::class)->middleware('throttle:60,1')`。`auth:sanctum` の外。CSRF は API なので元々なし
+- ルート: `Route::post('/stripe/webhook', StripeController::class)->middleware('throttle:60,1')`。`auth:sanctum` の外。CSRF は API なので元々なし
 - 各 Action（`MarkOrderPaid` 等）が `DB::transaction` + `lockForUpdate` を持つ
-- 処理中に例外 → 500 を返して Stripe に再送させる（`stripe_events.processed_at` は未セットのまま。ただし INSERT 済みなので、再送時は「重複」で弾かれてしまう → **`record()` は INSERT のみ、`markProcessed()` を別に持ち、`processed_at IS NULL` の行は再処理を許す**設計にする。`docs/09` に整理）
+- 処理中に例外 → 500 を返して Stripe に再送させる。`claim()` は `firstOrCreate` で行を作り `processed_at === null` なら true を返す（前回失敗の行はまだ null なので再処理できる）。`complete()` が `processed_at` をセットする。`docs/09` に整理
 
 ### MarkOrderPaid（Webhook succeeded の本体）
 
@@ -188,9 +189,9 @@ enum OrderStatus: string
         return in_array($to, $this->transitions(), true);
     }
 
-    public function isCancellable(): bool
+    public function isTerminal(): bool
     {
-        return $this->transitions() !== [] && in_array(self::Cancelled, $this->transitions(), true);
+        return $this->transitions() === [];
     }
 }
 ```
@@ -266,12 +267,13 @@ app/
 ├── Jobs/                 SendEmailVerificationJob  SendPasswordResetJob(通常は broker 任せ)  SendOrderConfirmationJob  SendOrderShippedJob
 ├── Mail/                 VerifyEmailMail  ResetPasswordMail  OrderConfirmationMail  OrderShippedMail
 ├── Http/
-│   ├── Controllers/Api/  ( + Admin/ )  StripeWebhookController
-│   ├── Middleware/        EnsureAdmin
-│   ├── Requests/          ( + Admin/ )
-│   └── Resources/         ( + Admin/ )
+│   ├── Controllers/Api/   Shop/  Auth/  Account/  Order/(OrderController CheckoutController)  Webhook/StripeController  Admin/
+│   ├── Middleware/        EnsureAdmin  EnsureEmailIsVerified(標準)
+│   ├── Requests/          Auth/  Address/  Order/  Checkout/  Admin/{Category,Product,ProductImage,Variant,Order,Content}/
+│   └── Resources/         Shop/  Order/(OrderResource OrderListResource OrderItemResource)  Account/  Admin/
 ├── Exceptions/           InsufficientStockException  UnpublishedProductException  CategoryInUseException
 │                         InvalidOrderTransitionException  PaymentAmountMismatchException
+│                         OrderNotPendingException
 ├── Models/               ... Payment  StripeEvent  SiteContent
 └── Services/             StorageService  StripeService
 ```

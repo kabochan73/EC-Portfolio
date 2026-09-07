@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Account;
 
 use App\Actions\Auth\UpdatePassword;
 use App\Actions\Auth\UpdateProfile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\UpdatePasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
-use App\Http\Resources\UserResource;
+use App\Http\Resources\Account\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

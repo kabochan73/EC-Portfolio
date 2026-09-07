@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Shop;
 
 use App\Models\Category;
 use Illuminate\Http\Request;

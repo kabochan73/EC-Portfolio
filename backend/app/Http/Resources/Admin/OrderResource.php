@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
-use App\Http\Resources\OrderItemResource;
+use App\Http\Resources\Order\OrderItemResource;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;

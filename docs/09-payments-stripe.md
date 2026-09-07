@@ -130,7 +130,7 @@ public function constructWebhookEvent(string $payload, ?string $sigHeader): Even
 
 ```php
 // routes/api.php （api ミドルウェアグループ。web の CSRF は元々かからない）
-Route::post('/stripe/webhook', StripeWebhookController::class)
+Route::post('/stripe/webhook', StripeController::class)
     ->middleware('throttle:60,1')
     ->name('stripe.webhook');
 ```

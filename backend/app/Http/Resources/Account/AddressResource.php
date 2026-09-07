@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Account;
 
 use App\Models\Address;
 use Illuminate\Http\Request;

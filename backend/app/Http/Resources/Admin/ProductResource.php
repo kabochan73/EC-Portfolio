@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
-use App\Http\Resources\ProductImageResource;
+use App\Http\Resources\Shop\ProductImageResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;

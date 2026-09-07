@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Order;
 
 use App\Models\Order;
 use Illuminate\Http\Request;
@@ -11,7 +11,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * @mixin Order
  */
-class OrderSummaryResource extends JsonResource
+class OrderListResource extends JsonResource
 {
     /**
      * @return array<string, mixed>

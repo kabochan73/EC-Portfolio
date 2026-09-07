@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Order;
 
 use App\Actions\Payment\CreatePaymentIntent;
 use App\Http\Controllers\Controller;

@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Order;
 
 use App\Actions\Order\CreateOrder;
 use App\Actions\Order\CreateOrderInput;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\StoreOrderRequest;
-use App\Http\Resources\OrderResource;
-use App\Http\Resources\OrderSummaryResource;
+use App\Http\Resources\Order\OrderListResource;
+use App\Http\Resources\Order\OrderResource;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,7 +39,7 @@ class OrderController extends Controller
             ->recentFirst()
             ->get();
 
-        return OrderSummaryResource::collection($orders);
+        return OrderListResource::collection($orders);
     }
 
     /** GET /api/orders/{order_number} … 本人の注文詳細。他人の番号は 404。 */

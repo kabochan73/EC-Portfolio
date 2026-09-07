@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\Account;
 
 use App\Actions\Address\CreateAddress;
 use App\Actions\Address\DeleteAddress;
@@ -9,7 +9,7 @@ use App\Actions\Address\UpdateAddress;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Address\StoreAddressRequest;
 use App\Http\Requests\Address\UpdateAddressRequest;
-use App\Http\Resources\AddressResource;
+use App\Http\Resources\Account\AddressResource;
 use App\Models\Address;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

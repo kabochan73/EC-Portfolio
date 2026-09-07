@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources;
+namespace App\Http\Resources\Shop;
 
 use App\Models\ProductImage;
 use Illuminate\Http\Request;

@@ -8,7 +8,7 @@ use App\Actions\Admin\ProductImage\ReorderProductImages;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProductImage\ReorderProductImagesRequest;
 use App\Http\Requests\Admin\ProductImage\StoreProductImageRequest;
-use App\Http\Resources\ProductImageResource;
+use App\Http\Resources\Shop\ProductImageResource;
 use App\Models\Product;
 use App\Models\ProductImage;
 use Illuminate\Http\JsonResponse;
