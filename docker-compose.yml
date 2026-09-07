@@ -85,12 +85,14 @@ services:
       # ソースをマウントしてホットリロード（php-fpm はリクエストごとに読み直す）
       - ./backend:/var/www/html
     environment:
-      # serversideup 側の運用フラグ（Laravel の .env ではなくコンテナ環境変数で渡す）
+      # serversideup 側の運用フラグのみ。Laravel の設定は ./backend/.env を
+      # アプリ自身がディスクから読む（env_file で注入すると APP_ENV / DB_* が
+      # 実コンテナ環境変数になり、phpunit.xml の <env> がテスト DB を上書きできず
+      # テストが開発 DB を作り直してしまう）。
       SSL_MODE: "off"                 # 内部通信は http。TLS は本番で Railway エッジが終端
       PHP_OPCACHE_ENABLE: "0"         # dev はコード変更を即反映したいので opcache 無効
       AUTORUN_ENABLED: "false"        # dev は migrate 等を手動で叩く（本番は true）
       PHP_FPM_POOL_NAME: "ecp"
-    env_file: ./backend/.env
     ports:
       # ホスト 8000 → コンテナ 8080（serversideup は非 root で 8080 をリッスン）。
       # BFF なので通常ブラウザからは使わないが、curl / Stripe CLI / MCP 用に開けておく
@@ -116,7 +118,8 @@ services:
     environment:
       SSL_MODE: "off"
       AUTORUN_ENABLED: "false"   # migrate/config:cache は backend 側が1回やる。worker はやらない
-    env_file: ./backend/.env
+    # Laravel の設定は ./backend/.env をアプリ自身が読む（env_file で注入しない。
+    # backend サービスのコメント参照）。
     # serversideup の既定 healthcheck は web サーバーを見に行くが、この
     # コンテナは queue:work だけを動かすのでプロセスの存在で判定する
     healthcheck:
