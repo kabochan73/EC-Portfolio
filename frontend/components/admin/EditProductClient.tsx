@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import ProductForm from "@/components/admin/ProductForm";
+import ProductImagesManager from "@/components/admin/ProductImagesManager";
 import type { AdminCategory, AdminProduct, AdminProductPayload } from "@/lib/types";
 
 type Props = {
@@ -12,7 +13,7 @@ type Props = {
 };
 
 /**
- * 商品編集（基本情報）。画像・バリアントの管理 UI は 47c-2 / 47c-3 で追加する。
+ * 商品編集。基本情報 + 画像管理。バリアントの管理 UI は 47c-3 で追加する。
  */
 export default function EditProductClient({ product, categories }: Props) {
   const router = useRouter();
@@ -66,6 +67,10 @@ export default function EditProductClient({ product, categories }: Props) {
       >
         Delete Product
       </button>
+
+      <hr className="my-10 border-mist" />
+
+      <ProductImagesManager productId={product.id} initialImages={product.images} />
     </div>
   );
 }

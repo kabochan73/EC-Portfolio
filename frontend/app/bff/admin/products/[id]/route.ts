@@ -1,4 +1,6 @@
-// ブラウザ → PUT/DELETE /bff/admin/products/{id} → Laravel /api/admin/products/{id}。
+// ブラウザ → GET/PUT/DELETE /bff/admin/products/{id} → Laravel /api/admin/products/{id}。
+// GET は ProductImagesManager / VariantsManager の refetch() 専用
+// （初期表示は Server Component が直接 lib を呼ぶ）。
 
 import { NextResponse } from "next/server";
 
@@ -8,6 +10,21 @@ import { getSessionToken } from "@/lib/auth";
 import { revalidate, tags } from "@/lib/revalidate";
 
 type Context = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, { params }: Context) {
+  const token = await getSessionToken();
+  if (!token) {
+    return NextResponse.json({ message: "Unauthenticated." }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  try {
+    return NextResponse.json({ data: await fetchAdminProduct(token, Number(id)) });
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
+}
 
 export async function PUT(request: Request, { params }: Context) {
   const token = await getSessionToken();
