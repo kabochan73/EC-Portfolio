@@ -20,7 +20,8 @@ ARG NEXT_PUBLIC_SITE_URL
 ENV API_URL=$API_URL \
     NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# public/ が空だと git 経由のビルドコンテキストに含まれず run ステージの COPY が失敗する保険
+RUN mkdir -p public && npm run build
 
 # ---- run: standalone サーバー（server.js + 最小 node_modules） ----
 FROM node:22-alpine AS run
