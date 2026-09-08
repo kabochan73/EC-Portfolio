@@ -10,6 +10,12 @@ export type ApiResource<T> = { data: T };
 /** 一覧リソース { "data": [...] } */
 export type ApiCollection<T> = { data: T[] };
 
+/** ページ付きリソース（Laravel paginate + Resource collection） */
+export type ApiPaginated<T> = {
+  data: T[];
+  meta: { current_page: number; last_page: number; per_page: number; total: number };
+};
+
 // ── Enums（backend/app/Enums/*）───────────────────────────────
 
 /** backend/app/Enums/StockStatus.php */
@@ -235,6 +241,49 @@ export type AdminCategory = {
   products_count: number;
 };
 
+// Admin/ProductListResource（未公開含む・在庫合計付き）
+export type AdminProductListItem = {
+  id: number;
+  name: string;
+  slug: string;
+  price: number;
+  category: { id: number; name: string; slug: string };
+  is_published: boolean;
+  position: number;
+  total_stock: number;
+  variant_count: number;
+};
+
+// Admin/ProductVariantResource（公開側と違い生の stock / sku を返す）
+export type AdminProductVariant = {
+  id: number;
+  size: string;
+  color: string | null;
+  sku: string | null;
+  stock: number;
+  position: number;
+};
+
+// Admin/ProductResource（編集フォーム用のフル情報）
+export type AdminProduct = {
+  id: number;
+  category_id: number;
+  name: string;
+  slug: string;
+  price: number;
+  description: string;
+  material: string;
+  care: string | null;
+  origin: string;
+  product_code: string;
+  size_chart: SizeChart | null;
+  is_published: boolean;
+  position: number;
+  created_at: string | null;
+  images: ProductImage[];
+  variants: AdminProductVariant[];
+};
+
 // ── 各関数専用の入力型 ──────────────────────────────────────
 
 export type LoginPayload = { email: string; password: string };
@@ -246,6 +295,20 @@ export type RegisterPayload = {
 };
 export type UpdateProfilePayload = { name: string; email: string };
 export type AdminCategoryPayload = { name: string; slug: string };
+export type AdminProductPayload = {
+  category_id: number;
+  name: string;
+  slug: string;
+  price: number;
+  description: string;
+  material: string;
+  care?: string | null;
+  origin: string;
+  product_code: string;
+  size_chart?: SizeChart | null;
+  is_published: boolean;
+  position: number;
+};
 export type UpdatePasswordPayload = {
   current_password: string;
   password: string;
