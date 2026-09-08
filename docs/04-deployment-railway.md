@@ -1,9 +1,19 @@
 # デプロイ構成（Railway + Docker）（R3）
 
-> **R3 の実運用メモ（2026-09-08 確定）**
-> - **Stripe は test モードのまま**本番デプロイする（実顧客がいないポートフォリオのため live キーは使わない）。`sk_test_` / `pk_test_` と、**test モードで作った Webhook エンドポイントの `whsec_`** を使う。
-> - **Resend は当面入れない** → `MAIL_MAILER=log`（送信メールは Railway のログに出力するだけ）。あとで `resend` + `RESEND_API_KEY` に切り替え可能。
-> - **frontend の `API_URL` は backend の「公開 URL」を使う**（`railway.internal` ではなく）。理由: トップページ等の ISR プリレンダーが `next build` 中に Laravel を叩くが、Railway の内部 DNS はビルド時に解決できないため。ビルド時・実行時の両方で公開 URL を使う（frontend→backend が公開網経由になるが、非 webhook ルートはトークン無しで 401 + CORS も frontend 限定なので実害は小さい）。
+> **R3 デプロイ実績（2026-09-08）** — Railway project `EC-Portfolio`
+> - frontend: `https://frontend-production-af2f.up.railway.app`（domain target port **8080**。Railway が `PORT` を注入し Next がそれで listen するため）
+> - backend: `https://backend-production-6d3d.up.railway.app`（serversideup、port 8080）
+> - queue / Postgres / bucket `ec-portfolio-media-6b21n`（region sin）は内部のみ
+> - **Stripe は test モードのまま**（live キー不使用）。webhook エンドポイントは test モードで作成し `whsec_` を backend に設定
+> - **Resend は入れない** → `MAIL_MAILER=log`（メールは queue のログに出るだけ）
+> - **frontend の `API_URL` = backend 公開 URL**（`railway.internal` はビルド時に解決不可。ISR プリレンダーが `next build` 中に Laravel を叩くため）
+>
+> **デプロイで踏んだ罠**
+> - `railway up` は git ルートを基準にアーカイブする → サブディレクトリからは `railway up . --path-as-root --service <name>` で当該ディレクトリをルートにする
+> - `.dockerignore` に `Dockerfile` を入れると Railway がビルダを検出できず Railpack に落ちる → 除外しない。加えて `railway.json`（`builder: DOCKERFILE`）を各サービスに置く
+> - `CACHE_STORE=database` + `AUTORUN_LARAVEL_MIGRATION_ISOLATION=true` は初回起動で詰む（isolation が `cache_locks` テーブルを要求するが migration 前で存在しない）→ 単一インスタンスなら **isolation=false**
+> - 初回のカタログは build 時プリレンダーが seed 前で空になる → seed 後に管理画面から1回編集（`revalidateTag`）するか、`revalidate` 秒で自然回復
+> - seed は `railway ssh --service backend "php artisan db:seed --force"`（`railway run` は内部 DB に届かない）
 
 ## サービス構成
 
