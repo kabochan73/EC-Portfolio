@@ -202,6 +202,30 @@ export type PaymentIntentResponse = {
   publishable_key: string;
 };
 
+// ── 管理画面（Resources/Admin/*）────────────────────────────
+
+// Admin/OrderListResource（管理向け注文一覧。顧客情報を含む）
+export type AdminOrderListItem = {
+  order_number: string;
+  status: OrderStatus;
+  total: number;
+  item_count: number;
+  customer: { id: number | null; name: string | null; email: string | null };
+  placed_at: string | null;
+  paid_at: string | null;
+};
+
+// GET /api/admin/stats（Admin/DashboardController）
+// revenue_total は API には残すが、管理ダッシュボードには表示しない（プロジェクト方針）。
+export type DashboardStats = {
+  orders_count: number;
+  revenue_total: number;
+  pending_count: number;
+  sold_out_count: number;
+  low_stock_count: number;
+  recent_orders: AdminOrderListItem[];
+};
+
 // ── 各関数専用の入力型 ──────────────────────────────────────
 
 export type LoginPayload = { email: string; password: string };
