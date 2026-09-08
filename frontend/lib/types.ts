@@ -309,6 +309,14 @@ export type AdminProductPayload = {
   is_published: boolean;
   position: number;
 };
+// size は作成時のみ（更新では変更不可。docs/05-admin.md）
+export type CreateVariantPayload = {
+  size: "S" | "M" | "L" | "FREE";
+  color?: string | null;
+  sku: string;
+  stock: number;
+};
+export type UpdateVariantPayload = { color?: string | null; sku: string; stock: number };
 export type UpdatePasswordPayload = {
   current_password: string;
   password: string;

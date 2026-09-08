@@ -1,10 +1,11 @@
 // 管理画面の商品画像のサーバー側専用ヘルパー。
 // アップロードのみ multipart（FormData）。他は categories.ts と同じ方針。
 
-import { fetchAdminProduct } from "@/lib/admin/products";
 import { apiFetch } from "@/lib/api";
-import { revalidate, tags } from "@/lib/revalidate";
 import type { ApiCollection, ApiResource, ProductImage } from "@/lib/types";
+
+// 画像・バリアント共通の ISR 無効化ヘルパー。実体は products.ts。
+export { revalidateProductCaches } from "@/lib/admin/products";
 
 function authHeader(token: string) {
   return { Authorization: `Bearer ${token}` };
@@ -52,17 +53,4 @@ export async function deleteProductImage(token: string, imageId: number): Promis
     method: "DELETE",
     headers: authHeader(token),
   });
-}
-
-/**
- * 画像を変えたら商品一覧カードと当該 PDP のキャッシュを飛ばす。
- * slug 解決に失敗しても最低限 products は無効化する。
- */
-export async function revalidateProductCaches(token: string, productId: number): Promise<void> {
-  try {
-    const product = await fetchAdminProduct(token, productId);
-    revalidate(tags.products, tags.product(product.slug));
-  } catch {
-    revalidate(tags.products);
-  }
 }

@@ -2,6 +2,7 @@
 // lib/admin/categories.ts と同じ方針: 実処理はここ、app/bff/**/route.ts は薄い窓口。
 
 import { apiFetch } from "@/lib/api";
+import { revalidate, tags } from "@/lib/revalidate";
 import type {
   AdminProduct,
   AdminProductListItem,
@@ -77,4 +78,17 @@ export async function deleteProduct(token: string, id: number): Promise<void> {
     method: "DELETE",
     headers: authHeader(token),
   });
+}
+
+/**
+ * 商品配下（画像・バリアント）を変えたら、商品一覧カードと当該 PDP の
+ * ISR キャッシュを飛ばす。slug 解決に失敗しても最低限 products は無効化する。
+ */
+export async function revalidateProductCaches(token: string, productId: number): Promise<void> {
+  try {
+    const product = await fetchAdminProduct(token, productId);
+    revalidate(tags.products, tags.product(product.slug));
+  } catch {
+    revalidate(tags.products);
+  }
 }

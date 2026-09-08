@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import ProductForm from "@/components/admin/ProductForm";
 import ProductImagesManager from "@/components/admin/ProductImagesManager";
+import VariantsManager from "@/components/admin/VariantsManager";
 import type { AdminCategory, AdminProduct, AdminProductPayload } from "@/lib/types";
 
 type Props = {
@@ -13,7 +14,7 @@ type Props = {
 };
 
 /**
- * 商品編集。基本情報 + 画像管理。バリアントの管理 UI は 47c-3 で追加する。
+ * 商品編集。基本情報 + 画像管理 + バリアント管理。
  */
 export default function EditProductClient({ product, categories }: Props) {
   const router = useRouter();
@@ -71,6 +72,10 @@ export default function EditProductClient({ product, categories }: Props) {
       <hr className="my-10 border-mist" />
 
       <ProductImagesManager productId={product.id} initialImages={product.images} />
+
+      <hr className="my-10 border-mist" />
+
+      <VariantsManager productId={product.id} initialVariants={product.variants} />
     </div>
   );
 }
