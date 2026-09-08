@@ -113,6 +113,9 @@ services:
     image: serversideup/php:8.4-fpm-nginx
     container_name: ecp-queue
     command: ["php", "artisan", "queue:work", "--tries=3", "--sleep=3", "--max-time=3600"]
+    # --max-time で worker は1時間ごとに自ら終了する（メモリリーク対策の定石）。
+    # Docker に再起動させて常駐を維持する。
+    restart: unless-stopped
     volumes:
       - ./backend:/var/www/html
     environment:
