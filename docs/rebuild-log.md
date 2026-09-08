@@ -429,3 +429,47 @@
 
 ### フロントエンド 完了 = 機能実装 完了
 公開カタログ（ISR）/ カート / 認証・メール認証・パスワードリセット / マイページ / チェックアウト + Stripe 決済 / 管理画面一式（ダッシュボード・カテゴリ・商品・画像・バリアント・注文フルフィルメント・会員・顧客別履歴）/ CMS 編集。ローカルで全導線を通し確認済み。次は フロントエンドのテスト（Vitest）→ CI（GitHub Actions）→ 本番デプロイ（Railway）。
+
+---
+
+## テスト・CI・デプロイ
+
+**整理 — 2026-09-08 管理ルートを routes/admin.php へ分離**
+- `routes/api.php` 144 行が肥大 → 管理 API 25 本を `routes/admin.php` に切り出し、`api.php` から `prefix('admin')` + `['auth:sanctum','admin']` のグループとして読み込む。`api.php` は 96 行（公開 + 認証必須）に
+- 判断基準: prefix グループの価値はミドルウェア共有であって URL の DRY 化ではない。この規模で `shop.php` 等に細分化はしない（全体一望の利点を失う）
+
+**Step 51 — 2026-09-08 フロントエンドのテスト（Vitest + Testing Library）**
+- 重い E2E（Playwright）は入れない方針を継続。`frontend/tests/` にソース構造をミラー配置（backend の `tests/` と揃える）
+- 51a 基盤 + 純粋ロジック: `vitest.config.mts`（jsdom / `@` エイリアス）、`vitest.setup.ts`（jest-dom + `next/link`・`next/image` モック）。`cart-summary`（送料・blocked）/ `cart` store（重複マージ・0 削除・count）/ `revalidate`（タグ・throw を握る）/ schemas（住所・パスワード・商品）
+- 51b コンポーネント: `VariantSelector`（色→サイズ絞り込み・`selectable` 判定・カート投入）/ `CartLine`（各種警告・ストア更新）/ `OrderStatusActions`（遷移表のボタン出し分け・PUT + `router.refresh`）
+- 詰まり: `@types/node` が `^20` のままで vitest の peer と衝突 → `^22`（Node 22 と整合）に。`next build` は tests を typecheck するので `.dockerignore` で除外
+- **合計 52 tests（7 ファイル）**。`npm test` = `vitest run`
+
+**Step 52 — 2026-09-08 CI（GitHub Actions）**
+- `.github/workflows/ci.yml`。`main` への push / PR で 2 ジョブ並列
+- backend: `postgres:16` service + `shivammathur/setup-php@v2`(8.4) → `pint --test` → `php artisan test`（`DB_HOST=127.0.0.1` で phpunit.xml の `db` を実 env で上書き。phpunit の `<env>` は非強制なので実 env が勝つ）
+- frontend: `setup-node`(`.nvmrc`=22) → `npm ci` → `tsc --noEmit` → `lint` → `vitest`
+- `next build` は CI に含めない（トップの ISR プリレンダーが backend を要するため。ビルド検証は Railway デプロイに委ねる）
+
+## Phase 11 — 本番デプロイ（Railway）
+
+**Step 11a — 2026-09-08 本番用 Dockerfile**
+- `backend/Dockerfile`: `serversideup/php:8.4-fpm-nginx` の薄いラッパ + `composer install --no-dev`。backend / queue で共用
+- `frontend/Dockerfile`: deps → build → standalone の 3 stage（イメージ 83.9MB）。`ARG API_URL` / `NEXT_PUBLIC_SITE_URL` をビルド時に埋め込む
+- ローカルで両方ビルド & 起動確認（`/api/health` / `/bff/health`）。frontend の `next build` はトップ等を backend からプリレンダーするので、ビルド時に到達可能な `API_URL` が必須と判明
+
+**Step 11b — 2026-09-08 Railway デプロイ（本番稼働）**
+- project `EC-Portfolio` に Postgres / bucket `ec-portfolio-media-6b21n`(sin) / backend / queue / frontend
+- frontend `https://frontend-production-af2f.up.railway.app`（domain target port 8080 = Railway が注入する `PORT`）、backend `https://backend-production-6d3d.up.railway.app`
+- `API_URL` は backend 公開 URL（内部 DNS はビルド時に解決不可）。Stripe は test モードのまま webhook 登録。`MAIL_MAILER=log`
+- 詰まり:
+  - `railway up` は git ルート基準でアーカイブ → サブディレクトリからは `railway up . --path-as-root --service <name>`
+  - `.dockerignore` に `Dockerfile` を入れるとビルダ検出できず Railpack に落ちる → 除外しない + `railway.json`（`builder: DOCKERFILE`）
+  - `CACHE_STORE=database` + `MIGRATION_ISOLATION=true` は初回で詰む（isolation が `cache_locks` を要求、migration 前で無い）→ 単一インスタンスなら isolation=false
+  - 初回トップは build 時プリレンダーが seed 前で空 → seed 後に管理画面から 1 回編集（`revalidateTag`）で回復
+  - seed は `railway ssh --service backend "php artisan db:seed --force"`（`railway run` は内部 DB に届かない）
+- 通し確認: カタログ / 決済(4242) → Webhook → `paid` / queue が注文確認メールジョブ処理。詳細は `docs/04-deployment-railway.md`
+
+## 残タスク
+- Step 53 CD: GitHub 連携（`main` push で自動デプロイ）
+- Resend 導入・実画像アップロードは任意
