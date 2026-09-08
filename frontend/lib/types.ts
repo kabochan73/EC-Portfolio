@@ -241,6 +241,15 @@ export type AdminCategory = {
   products_count: number;
 };
 
+// Admin/CustomerResource（会員一覧。閲覧のみ）
+export type AdminCustomer = {
+  id: number;
+  name: string;
+  email: string;
+  orders_count: number;
+  joined_at: string | null;
+};
+
 // Admin/OrderResource（管理向け注文詳細。顧客・決済情報を含む）
 export type AdminOrderDetail = {
   order_number: string;
