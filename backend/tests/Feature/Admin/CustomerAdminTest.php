@@ -34,3 +34,31 @@ it('rejects a non-admin', function () {
         ->getJson('/api/admin/customers')
         ->assertForbidden();
 });
+
+it('shows a single customer with their order count', function () {
+    $customer = User::factory()->create(['name' => 'Aoi', 'email' => 'aoi@example.com']);
+    Order::factory()->for($customer)->count(3)->create();
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->getJson("/api/admin/customers/{$customer->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $customer->id)
+        ->assertJsonPath('data.email', 'aoi@example.com')
+        ->assertJsonPath('data.orders_count', 3);
+});
+
+it('returns 404 when the id belongs to an admin', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs(User::factory()->admin()->create())
+        ->getJson("/api/admin/customers/{$admin->id}")
+        ->assertNotFound();
+});
+
+it('rejects a non-admin on show', function () {
+    $customer = User::factory()->create();
+
+    $this->actingAs(User::factory()->create())
+        ->getJson("/api/admin/customers/{$customer->id}")
+        ->assertForbidden();
+});

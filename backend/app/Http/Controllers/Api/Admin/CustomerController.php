@@ -31,4 +31,12 @@ class CustomerController extends Controller
 
         return CustomerResource::collection($customers);
     }
+
+    /** GET /api/admin/customers/{customer} … 顧客1人の情報。管理者 ID は 404。 */
+    public function show(User $customer): CustomerResource
+    {
+        abort_unless($customer->role === UserRole::Customer, 404);
+
+        return CustomerResource::make($customer->loadCount('orders'));
+    }
 }

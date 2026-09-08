@@ -132,6 +132,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     // --- 会員（閲覧のみ） ---
     Route::get('/customers', [AdminCustomerController::class, 'index']);
+    Route::get('/customers/{customer}', [AdminCustomerController::class, 'show']);
 
     // --- ダッシュボード ---
     Route::get('/stats', [AdminDashboardController::class, 'stats']);

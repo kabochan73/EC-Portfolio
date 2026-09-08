@@ -21,6 +21,7 @@ class OrderController extends Controller
     {
         $filters = $request->validate([
             'status' => ['sometimes', Rule::enum(OrderStatus::class)],
+            'customer_id' => ['sometimes', 'integer', 'exists:users,id'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
 
@@ -28,6 +29,7 @@ class OrderController extends Controller
             ->with('user:id,name,email')
             ->withSum('items as items_quantity_total', 'quantity')
             ->when(isset($filters['status']), fn ($q) => $q->where('status', $filters['status']))
+            ->when(isset($filters['customer_id']), fn ($q) => $q->where('user_id', $filters['customer_id']))
             ->recentFirst()
             ->paginate(20);
 

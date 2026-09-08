@@ -48,6 +48,19 @@ it('rejects an unknown status filter', function () {
         ->assertStatus(422);
 });
 
+it('filters by customer_id', function () {
+    $alice = User::factory()->create();
+    $bob = User::factory()->create();
+    $aliceOrder = Order::factory()->for($alice)->create();
+    Order::factory()->for($bob)->count(2)->create();
+
+    $this->actingAs(orderAdmin())
+        ->getJson("/api/admin/orders?customer_id={$alice->id}")
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.order_number', $aliceOrder->order_number);
+});
+
 it('shows a single order with items, customer and payment details', function () {
     $customer = User::factory()->create(['email' => 'buyer@example.com']);
     $order = Order::factory()->for($customer)->paid()->withItems(2)->create();
