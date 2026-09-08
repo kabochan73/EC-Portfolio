@@ -19,7 +19,7 @@
 
 | レイヤー | 置き場所 | 責務 |
 |---|---|---|
-| Route | `routes/api.php` | URL とコントローラの対応、ミドルウェア |
+| Route | `routes/api.php`（公開 + 認証必須）/ `routes/admin.php`（管理 API。api.php から prefix('admin') + admin ミドルウェアで読み込む） | URL とコントローラの対応、ミドルウェア |
 | Controller | `app/Http/Controllers/Api/{Shop,Auth,Account,Order,Webhook,Admin}/` | 入力を受け取り Action を呼び Resource を返す |
 | FormRequest | `app/Http/Requests` | 形式的バリデーション + 認可 |
 | Action | `app/Actions` | ビジネスロジック1ユースケース。トランザクション境界 |

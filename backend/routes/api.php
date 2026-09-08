@@ -2,14 +2,6 @@
 
 use App\Http\Controllers\Api\Account\AddressController;
 use App\Http\Controllers\Api\Account\ProfileController;
-use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
-use App\Http\Controllers\Api\Admin\CustomerController as AdminCustomerController;
-use App\Http\Controllers\Api\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Api\Admin\OrderController as AdminOrderController;
-use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
-use App\Http\Controllers\Api\Admin\ProductImageController as AdminProductImageController;
-use App\Http\Controllers\Api\Admin\SiteContentController as AdminSiteContentController;
-use App\Http\Controllers\Api\Admin\VariantController as AdminVariantController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
@@ -20,7 +12,6 @@ use App\Http\Controllers\Api\Shop\CategoryController;
 use App\Http\Controllers\Api\Shop\ProductController;
 use App\Http\Controllers\Api\Shop\SiteContentController;
 use App\Http\Controllers\Api\Webhook\StripeController;
-use App\Models\SiteContent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -99,46 +90,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/checkout/payment-intent', [CheckoutController::class, 'paymentIntent'])->middleware('verified');
 });
 
-// --- 管理画面（admin ロールのみ。docs/05-admin.md） ---
-Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
-    // reorder は {category} より先に登録する（静的パスを先にマッチさせる）
-    Route::put('/categories/reorder', [AdminCategoryController::class, 'reorder']);
-    Route::get('/categories', [AdminCategoryController::class, 'index']);
-    Route::post('/categories', [AdminCategoryController::class, 'store']);
-    Route::put('/categories/{category}', [AdminCategoryController::class, 'update']);
-    Route::delete('/categories/{category}', [AdminCategoryController::class, 'destroy']);
-
-    // --- 商品（基本情報。画像・バリアントは別ステップ） ---
-    Route::get('/products', [AdminProductController::class, 'index']);
-    Route::post('/products', [AdminProductController::class, 'store']);
-    Route::get('/products/{product}', [AdminProductController::class, 'show']);
-    Route::put('/products/{product}', [AdminProductController::class, 'update']);
-    Route::delete('/products/{product}', [AdminProductController::class, 'destroy']);
-
-    // --- 商品画像（reorder は静的パスなので {productImage} と衝突しない） ---
-    Route::post('/products/{product}/images', [AdminProductImageController::class, 'store']);
-    Route::put('/products/{product}/images/reorder', [AdminProductImageController::class, 'reorder']);
-    Route::delete('/product-images/{productImage}', [AdminProductImageController::class, 'destroy']);
-
-    // --- バリアント（サイズ×色） ---
-    Route::post('/products/{product}/variants', [AdminVariantController::class, 'store']);
-    Route::put('/variants/{variant}', [AdminVariantController::class, 'update']);
-    Route::delete('/variants/{variant}', [AdminVariantController::class, 'destroy']);
-
-    // --- 注文（全ユーザー横断） ---
-    Route::get('/orders', [AdminOrderController::class, 'index']);
-    Route::get('/orders/{orderNumber}', [AdminOrderController::class, 'show']);
-    Route::put('/orders/{orderNumber}/status', [AdminOrderController::class, 'updateStatus']);
-
-    // --- 会員（閲覧のみ） ---
-    Route::get('/customers', [AdminCustomerController::class, 'index']);
-    Route::get('/customers/{customer}', [AdminCustomerController::class, 'show']);
-
-    // --- ダッシュボード ---
-    Route::get('/stats', [AdminDashboardController::class, 'stats']);
-
-    // --- CMS（トップページのコンテンツ。docs/11-cms.md） ---
-    Route::get('/content', [AdminSiteContentController::class, 'index']);
-    Route::put('/content/{key}', [AdminSiteContentController::class, 'update'])->whereIn('key', SiteContent::KEYS);
-    Route::post('/content/{key}/images', [AdminSiteContentController::class, 'uploadImage'])->whereIn('key', SiteContent::KEYS);
-});
+// --- 管理画面（admin ロールのみ。定義は routes/admin.php。docs/05-admin.md） ---
+Route::middleware(['auth:sanctum', 'admin'])
+    ->prefix('admin')
+    ->group(base_path('routes/admin.php'));
