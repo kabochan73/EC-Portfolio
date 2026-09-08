@@ -241,6 +241,28 @@ export type AdminCategory = {
   products_count: number;
 };
 
+// Admin/OrderResource（管理向け注文詳細。顧客・決済情報を含む）
+export type AdminOrderDetail = {
+  order_number: string;
+  status: OrderStatus;
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
+  placed_at: string | null;
+  paid_at: string | null;
+  shipped_at: string | null;
+  cancelled_at: string | null;
+  customer: { id: number | null; name: string | null; email: string | null };
+  shipping_address: ShippingAddressSnapshot;
+  items: OrderItem[];
+  payment?: {
+    status: string;
+    stripe_payment_intent_id: string | null;
+    last_error: string | null;
+    refunded_at: string | null;
+  } | null;
+};
+
 // Admin/ProductListResource（未公開含む・在庫合計付き）
 export type AdminProductListItem = {
   id: number;
