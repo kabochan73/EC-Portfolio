@@ -320,3 +320,112 @@
 **整理 — 2026-09-08 コントローラー・リソースをドメインフォルダに**
 - フロント着手前にユーザー要望で backend を整理。`Api/` 直下のフラット 12 コントローラを `Shop/ Auth/ Account/ Order/ Webhook/` にグループ化、Resources も `Shop/ Order/ Account/`。`StripeWebhookController` → `Webhook/StripeController`、`OrderSummaryResource` → `Order/OrderListResource`（`Admin/OrderListResource` と命名統一）
 - テストは HTTP 経由で `App\Http\*` を直接参照しないため無変更 → 201 passed のまま安全網に。`pint --test` 207 files PASS
+
+---
+
+## 機能実装フェーズ（フロントエンド・Next.js）
+
+> 検証は各 Step で `docker compose exec frontend npx tsc --noEmit` / `npm run lint` を通し、主要導線を curl（BFF）+ Mailpit + CDP スクショで確認。重い E2E（Playwright）は入れない方針を継続。
+
+### Phase 7 — 共通レイアウト + トップ + 商品詳細（ISR）（Step 33〜35）
+
+**Step 33 — 2026-09-08 共通レイアウト + lib 土台**
+- `app/layout.tsx`（Geist・`<html lang="ja">`・`QueryProvider` + `CartHydration`）、`globals.css` に 4 色トークン（`--color-ink/paper/mist/graphite`、ダークモードなし）、`(shop)/layout.tsx`（`Header` fixed + `Footer`）
+- `lib/api.ts`（`apiFetch` = サーバー専用、`init.next` があれば `no-store` を付けない＝ISR と排他／`ApiError`／`apiErrorResponse`）、`lib/types.ts`（Resource と 1:1）、`lib/constants.ts`（`ecp_token` / `ecp-cart` / 送料など）
+- `middleware.ts`（`/checkout` `/account` `/admin` `/verify-email` は Cookie 有無のみ判定、実検証は Server Component の `requireAuth`）
+
+**Step 34 — 2026-09-08 データ取得層(ISR) + 商品カード + トップのカテゴリセクション**
+- `lib/revalidate.ts`（タグ `products` / `product:{slug}` / `categories` / `content`、`revalidate()` は try/catch で握る）。`lib/{categories,products}.ts` は `next: { tags, revalidate }` 付き
+- `ProductMedia`（NO IMAGE フォールバック・ホバーで 2 枚目）、`ProductCard`（NEW / LOW STOCK / SOLD OUT バッジ）、`CategoryGrid`（カテゴリ別に全公開商品を position 順、0 件カテゴリは非表示）
+
+**Step 35 — 2026-09-08 トップページの CMS セクション**
+- `lib/content.ts`（`GET /api/content`、タグ `content`）。`Hero` / `BrandConcept` / `Lookbook`（横スクロール）/ `AboutSection`（画像左右交互）を CMS 駆動に。空セクションは `null` を返して出さない
+- `app/media/[...key]/route.ts`（S3 `GetObject` プロキシ、`forcePathStyle: true`、`Cache-Control: immutable`）
+
+### Phase 8 — カート / 認証 / マイページ / チェックアウト（Step 36〜46）
+
+**Step 36 — 2026-09-08 商品詳細 + カートストア + カート追加**
+- `products/[slug]/page.tsx`：`generateMetadata` で `notFound()`（ストリーミング前に 404 を確定させるため。`(shop)` に `loading.tsx` は置かない）。`Gallery` / `VariantSelector`（色＋サイズ、`variant.selectable` で追加可否、`sold_out` は無効）/ `Accordion` ×4
+- `lib/stores/cart.ts`：zustand + persist（key `ecp-cart`、`skipHydration: true`）、`CartHydration` がマウント後に `rehydrate()`。SSR は常に `items: []`
+- 詰まり: 商品詳細の `notFound()` が 200 で返る → `(shop)/loading.tsx` 削除 + `generateMetadata` で `notFound()`
+
+**Step 37 — 2026-09-08 カートページ + 在庫再検証**
+- `useCartValidation`（`GET /bff/cart/validate?ids=` を variant_id 集合キーでキャッシュ、取得前は楽観的に available）。`CartLine`（数量ステッパー・購入不可/在庫超過/価格変動の警告）、`CartSummary`（送料無料しきい値）
+- `(cart)/loading.tsx` は OK（このツリーは `notFound()` を呼ばない）
+
+**Step 38 — 2026-09-08 認証コア（ログイン/登録/ログアウト）**
+- `lib/auth.ts`（サーバー専用）：`setSessionCookie`（httpOnly / secure=本番 / 30 日）、`registerUser` / `loginUser` / `logoutUser` / `fetchCurrentUser` / `requireAuth`（失効時 `/login?redirect=`）/ `requireAdmin`
+- `app/bff/{login,register,logout,me}`、`LoginForm`（`?reset=1` 通知、`["session"]` を `setQueryData`）、`RegisterForm`（422 をフィールドに）
+- BFF エラー中継の型: サーバー側は `apiErrorResponse`、クライアントフォームは `!res.ok` で `{ body }` を throw して `setError` にマップ
+
+**Step 39 — 2026-09-08 メール認証 UI**
+- `/verify-email`（未認証時の誘導 + 60 秒スロットルの再送）、`VerifyEmailClient`（URL に署名があれば自動で `POST /bff/email/verify` → `["session"]` を invalidate）
+- 署名 URL は BFF のホスト書き換えを越えるため Laravel 側で `URL::temporarySignedRoute(absolute: false)` + `signed:relative`
+
+**Step 40 — 2026-09-08 パスワードリセット UI**
+- `/forgot-password`（存在の有無に関わらず中立メッセージ）、`/reset-password`（token/email を URL から、成功で `/login?reset=1`）。`useSearchParams` のため `Suspense` でラップ
+
+**Step 41〜44 — 2026-09-08 マイページ**
+- 41 ダッシュボード（`AccountMenu`、未認証は `requireAuth`、未検証なら `VerifyEmailBanner`）
+- 42 注文履歴・注文詳細（不明な番号は `notFound()` → `(account)` に `loading.tsx` は置かない。pending 注文には「決済を完了する」導線）
+- 43 住所録 CRUD（`AddressBook` は TanStack Query `["addresses"]`、`send()` が `!ok` で `{ body }` throw）
+- 44 プロフィール編集（氏名・メール、メール変更時は「確認メールを送りました」。パスワード変更は `current_password` 必須）
+
+**Step 45 — 2026-09-08 チェックアウト（配送先 → 注文作成）**
+- `/checkout`：`requireAuth` → **メール未認証なら `/verify-email` へ** → 住所録取得 → `CheckoutClient`
+- `AddressPicker`（住所録から選択 or 新規入力・「住所録に保存」）、`OrderReview`、`lib/cart-summary.ts`（`summarizeCart` = 金額 + `blocked` 判定の純粋関数）
+- `POST /bff/orders` 成功で `/checkout/payment?order=<number>` へ。カートはこの時点では空にしない（決済成功後）
+- 注文が見つからない系は `notFound()` ではなく `redirect()`（`(cart)/loading.tsx` の 200 問題を回避）
+
+**Step 46 — 2026-09-08 Stripe 決済（Payment Element）**
+- `/checkout/payment`：注文検証 → `POST /api/checkout/payment-intent`（`{ client_secret, publishable_key }`）→ `StripeProvider`（`loadStripe` + `<Elements>`、モノトーン appearance）+ `PaymentForm`（`confirmPayment`、`return_url` = `/checkout/complete`）
+- `/checkout/complete`：`useOrderStatusPolling`（2.5 秒間隔・最大 60 秒、`status !== 'pending'` で停止）。**paid への遷移は Webhook が唯一の真実**。paid でカートクリア、cancelled は再試行導線
+- Stripe 未設定(503)・価格ズレ(409) は Server Component でパネル表示
+- 検証: `stripe listen` + テストカードで pending → paid → 注文確認メール（Mailpit）まで通し確認。**Stripe テストキー（`pk_test`/`sk_test`/`whsec`）を `backend/.env` に投入済み**（実キー＝本番キーは後回し）
+
+### Phase 9 — 管理画面 + CMS 編集（Step 47〜48）
+
+> 管理画面は ISR を使わず全て `no-store` の SSR（在庫・注文をリアルタイムで見る）。ミューテーション後は `router.refresh()` かマネージャのクライアント再取得。公開側のカタログ/CMS 更新時のみ BFF が `revalidateTag` を呼ぶ。
+
+**Step 47a — 2026-09-08 管理レイアウト + ダッシュボード**
+- `app/admin/layout.tsx`（`requireAdmin`、`(shop)` 外なので独自シェル）、`AdminNav`（`usePathname` でアクティブ）
+- ダッシュボード：`Orders` / `Pending` / `Low Stock` / `Sold Out` の 4 カード + Recent Orders。**`revenue_total` は API に残すが表示しない**（ユーザー判断）
+
+**Step 47b — 2026-09-08 カテゴリ管理**
+- `/admin/categories`：一覧 + ▲▼並べ替え + インライン追加/編集/削除。ミューテーション後に一覧を取り直す（`AddressBook` 方式）
+- BFF：作成 → `revalidate('categories')`、更新/削除 → `'categories'` + `'products'`（名前変更が商品カードに波及）、409（所属商品あり）はメッセージ中継
+
+**Step 47c — 2026-09-08 商品管理（基本情報 / 画像 / バリアント）**
+- c-1 基本情報：一覧（`?q` / `?category` / ページング、全て GET クエリ）、作成・編集・削除、`SizeChartEditor`（ref 経由で値を取り出しマージ）
+- c-2 画像：`ProductImagesManager`（アップロード・▲▼・削除）。multipart は BFF が `formData` を組み直して `apiFetch` に渡す。`GET /bff/admin/products/{id}` を追加（マネージャの refetch 用）
+- c-3 バリアント：`VariantsManager`（size は作成時のみ、size+color 重複 / SKU 重複は 422）。`revalidateProductCaches(token, productId)` を `lib/admin/products.ts` に集約（在庫変化 → カード/PDP の stock_status）。フラットな `/variants/{id}` は `?product={id}` で商品を特定
+
+**Step 47d — 2026-09-08 注文管理・フルフィルメント**
+- `/admin/orders`（`?status=` 絞り込み・SSR）、詳細（顧客・タイムライン・配送先・決済情報・明細）
+- `OrderStatusActions`：enum の遷移表 ∩ admin 許可（shipped/completed/cancelled）だけボタン表示。cancel は副作用（返金・在庫戻し）の説明付き `confirm`。不正遷移・終端は Laravel の 422 を中継
+
+**Step 47e — 2026-09-08 会員一覧**
+- `/admin/customers`：氏名・メール・登録日・注文数（閲覧専用・SSR・`?q=` 検索）
+
+**Step 48 — 2026-09-08 CMS 編集（`/admin/content`）**
+- a: 基盤 + Hero（見出し/タグライン/背景画像）+ Concept（本文）。`ContentImageUpload`（アップロード → `/media` URL を親に返す。data 反映はセクション保存時）
+- b: Lookbook（画像リスト・alt・▲▼、最大 12）+ About（ブロック追加/削除/▲▼・ブロック毎に画像、最大 6）
+- 各セクション独立保存 → BFF が `revalidate('content')` → トップに即反映。不正キーはルートの `whereIn` で 404
+
+### Phase 10 — 仕上げ + 追加機能（Step 49〜50）
+
+**Step 49 — 2026-09-08 仕上げ（エラー境界 + レスポンシブ）**
+- `app/global-error.tsx`（ルートレイアウト用・独自 `<html><body>`）、`app/not-found.tsx`（グループ外の 404）、`app/admin/{error,not-found}.tsx`
+- 管理レイアウトをモバイルで縦積みに（サイドバー → 上部の横スクロールナビ）。商品一覧ヘッダーを `flex-wrap`
+- 詰まり: 新しい Tailwind クラス組み合わせを既存ファイルに足すと Turbopack の CSS HMR が古い CSS を配り続ける → `docker compose restart frontend` で解消。レスポンシブ実測は headless Chrome + CDP `Emulation.setDeviceMetricsOverride`（`--screenshot` 単体は 980px 幅で描くので当てにならない）→ 390px で全ページ横スクロールなしを確認
+
+**Step 50 — 2026-09-08 顧客別の注文履歴ページ**（プランへの追加。「あの客、何買ったっけ」を引きやすく）
+- backend: `GET /api/admin/customers/{customer}`（管理者 ID は 404）、`GET /api/admin/orders` に `?customer_id=` フィルタ。Pest +4 本
+- frontend: `/admin/customers/[id]`（顧客情報 + 注文履歴）、一覧の行をリンク化、`OrderTable` を新設し `/admin/orders` と共用（`showCustomer` で Customer 列を出し分け）
+- 導線: Customers → 顧客 → 注文履歴 → 注文クリックで商品明細
+
+**整理 — 2026-09-08 queue worker の restart ポリシー**
+- `queue` サービスは `--max-time=3600` で 1 時間ごとに自終了する設計 → `restart: unless-stopped` を追加して常駐を維持
+
+### フロントエンド 完了 = 機能実装 完了
+公開カタログ（ISR）/ カート / 認証・メール認証・パスワードリセット / マイページ / チェックアウト + Stripe 決済 / 管理画面一式（ダッシュボード・カテゴリ・商品・画像・バリアント・注文フルフィルメント・会員・顧客別履歴）/ CMS 編集。ローカルで全導線を通し確認済み。次は フロントエンドのテスト（Vitest）→ CI（GitHub Actions）→ 本番デプロイ（Railway）。
