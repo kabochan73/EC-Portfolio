@@ -11,7 +11,5 @@ npm-debug.log*
 tests
 vitest.config.mts
 vitest.setup.ts
-Dockerfile
 Dockerfile.dev
-.dockerignore
 README.md

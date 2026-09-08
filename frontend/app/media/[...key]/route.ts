@@ -13,8 +13,9 @@ const s3 = new S3Client({
     accessKeyId: process.env.BUCKET_ACCESS_KEY_ID ?? "",
     secretAccessKey: process.env.BUCKET_SECRET_ACCESS_KEY ?? "",
   },
-  // MinIO はバーチャルホスト形式に非対応（backend の AWS_USE_PATH_STYLE_ENDPOINT=true と同じ理由）
-  forcePathStyle: true,
+  // MinIO（ローカル）はパス形式。Railway Storage（本番）はバーチャルホスト形式。
+  // backend の AWS_USE_PATH_STYLE_ENDPOINT と同じ判断。既定はローカル向けに true。
+  forcePathStyle: process.env.BUCKET_FORCE_PATH_STYLE !== "false",
 });
 
 type Params = { params: Promise<{ key: string[] }> };

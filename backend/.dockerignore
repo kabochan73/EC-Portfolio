@@ -12,7 +12,4 @@
 /storage/framework/sessions/*
 /storage/framework/views/*
 .phpunit.result.cache
-phpunit.xml
-Dockerfile
-.dockerignore
 README.md
