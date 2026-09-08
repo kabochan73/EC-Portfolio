@@ -15,6 +15,7 @@ function authHeader(token: string) {
 
 export type AdminOrderListParams = {
   status?: string;
+  customerId?: number;
   page?: number;
 };
 
@@ -25,6 +26,7 @@ export async function fetchAdminOrders(
 ): Promise<ApiPaginated<AdminOrderListItem>> {
   const query = new URLSearchParams();
   if (params.status) query.set("status", params.status);
+  if (params.customerId) query.set("customer_id", String(params.customerId));
   if (params.page) query.set("page", String(params.page));
 
   const suffix = query.toString() ? `?${query.toString()}` : "";

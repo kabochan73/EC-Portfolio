@@ -70,7 +70,14 @@ export default async function AdminCustomersPage({ searchParams }: PageProps) {
             <tbody>
               {result.data.map((customer) => (
                 <tr key={customer.id} className="border-b border-mist">
-                  <td className="py-3 pr-4">{customer.name}</td>
+                  <td className="py-3 pr-4">
+                    <Link
+                      href={`/admin/customers/${customer.id}`}
+                      className="hover:underline"
+                    >
+                      {customer.name}
+                    </Link>
+                  </td>
                   <td className="py-3 pr-4 text-graphite">{customer.email}</td>
                   <td className="py-3 pr-4 text-graphite">{formatDate(customer.joined_at)}</td>
                   <td className="py-3 text-right">{customer.orders_count}</td>

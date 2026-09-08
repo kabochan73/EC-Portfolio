@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import OrderStatusBadge from "@/components/account/OrderStatusBadge";
+import OrderTable from "@/components/admin/OrderTable";
 import { fetchAdminOrders } from "@/lib/admin/orders";
 import { requireAdmin } from "@/lib/auth";
 import type { OrderStatus } from "@/lib/types";
@@ -11,11 +11,6 @@ export const metadata: Metadata = { title: "Admin Orders" };
 const STATUSES: OrderStatus[] = ["pending", "paid", "shipped", "completed", "cancelled"];
 
 type PageProps = { searchParams: Promise<{ status?: string; page?: string }> };
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("ja-JP");
-}
 
 export default async function AdminOrdersPage({ searchParams }: PageProps) {
   const { token } = await requireAdmin("/admin/orders");
@@ -65,47 +60,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
         </button>
       </form>
 
-      {result.data.length === 0 ? (
-        <p className="text-sm text-graphite">No orders found.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-ink text-left text-[11px] tracking-widest text-graphite uppercase">
-                <th className="py-2 pr-4 font-normal">Order</th>
-                <th className="py-2 pr-4 font-normal">Customer</th>
-                <th className="py-2 pr-4 font-normal">Date</th>
-                <th className="py-2 pr-4 font-normal">Items</th>
-                <th className="py-2 pr-4 font-normal">Status</th>
-                <th className="py-2 text-right font-normal">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.data.map((order) => (
-                <tr key={order.order_number} className="border-b border-mist">
-                  <td className="py-3 pr-4">
-                    <Link
-                      href={`/admin/orders/${order.order_number}`}
-                      className="tracking-wide hover:underline"
-                    >
-                      {order.order_number}
-                    </Link>
-                  </td>
-                  <td className="py-3 pr-4">{order.customer.name ?? "—"}</td>
-                  <td className="py-3 pr-4 text-graphite">{formatDate(order.placed_at)}</td>
-                  <td className="py-3 pr-4 text-graphite">{order.item_count}</td>
-                  <td className="py-3 pr-4">
-                    <OrderStatusBadge status={order.status} />
-                  </td>
-                  <td className="py-3 text-right">
-                    ¥{order.total.toLocaleString("ja-JP")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <OrderTable orders={result.data} />
 
       {result.meta.last_page > 1 && (
         <div className="mt-6 flex items-center gap-4 text-xs tracking-widest uppercase">
