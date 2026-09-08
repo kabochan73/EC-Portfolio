@@ -1,5 +1,10 @@
 # デプロイ構成（Railway + Docker）（R3）
 
+> **R3 の実運用メモ（2026-09-08 確定）**
+> - **Stripe は test モードのまま**本番デプロイする（実顧客がいないポートフォリオのため live キーは使わない）。`sk_test_` / `pk_test_` と、**test モードで作った Webhook エンドポイントの `whsec_`** を使う。
+> - **Resend は当面入れない** → `MAIL_MAILER=log`（送信メールは Railway のログに出力するだけ）。あとで `resend` + `RESEND_API_KEY` に切り替え可能。
+> - **frontend の `API_URL` は backend の「公開 URL」を使う**（`railway.internal` ではなく）。理由: トップページ等の ISR プリレンダーが `next build` 中に Laravel を叩くが、Railway の内部 DNS はビルド時に解決できないため。ビルド時・実行時の両方で公開 URL を使う（frontend→backend が公開網経由になるが、非 webhook ルートはトークン無しで 401 + CORS も frontend 限定なので実害は小さい）。
+
 ## サービス構成
 
 | サービス | 中身 | 公開 | ポート |
@@ -51,9 +56,8 @@ Railway では各サービスの Root Directory を `frontend` / `backend` に�
 ### frontend
 | 変数 | 値（本番） | 用途 |
 |---|---|---|
-| `API_URL` | `http://backend.railway.internal:8080` | サーバー側から Laravel を呼ぶ |
-| `NEXT_PUBLIC_SITE_URL` | 公開ドメイン | 絶対URL生成 |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` / `pk_live_...` | Payment Element の初期化（クライアント可） |
+| `API_URL` | backend の**公開 URL**（`https://<backend>.up.railway.app`） | サーバー側から Laravel を呼ぶ。ビルド時のプリレンダーでも使う（内部 DNS はビルド時に解決不可） |
+| `NEXT_PUBLIC_SITE_URL` | frontend 公開ドメイン | 絶対URL生成 |
 | `BUCKET_ENDPOINT` / `BUCKET_ACCESS_KEY_ID` / `BUCKET_SECRET_ACCESS_KEY` / `BUCKET_NAME` / `BUCKET_REGION` | `${{Bucket.*}}` | `/media` プロキシの GetObject |
 | `NODE_ENV` | `production` | |
 
@@ -81,12 +85,12 @@ Railway では各サービスの Root Directory を `frontend` / `backend` に�
 | `FILESYSTEM_DISK` | `s3` | 画像を Railway バケットへ |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_DEFAULT_REGION` / `AWS_BUCKET` / `AWS_ENDPOINT` | `${{Bucket.*}}` | |
 | `AWS_USE_PATH_STYLE_ENDPOINT` | バケットの Credentials タブの指示に従う | |
-| `STRIPE_SECRET_KEY` | `sk_test_...` / `sk_live_...` | stripe-php |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Webhook 署名検証 |
-| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | `/api/checkout/payment-intent` のレスポンスに載せる |
-| `MAIL_MAILER` | `resend` | |
-| `RESEND_API_KEY` | `re_...` | |
-| `MAIL_FROM_ADDRESS` | `noreply@<検証済みドメイン>` | |
+| `APP_NAME` | `EC-PORTFOLIO` | ヘルス応答・メール表示名 |
+| `STRIPE_SECRET_KEY` | `sk_test_...`（**test のまま**） | stripe-php |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...`（**test モードの Webhook エンドポイント**のもの） | Webhook 署名検証 |
+| `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | `/api/checkout/payment-intent` のレスポンスに載せる（フロントの Payment Element 初期化に使う） |
+| `MAIL_MAILER` | `log`（当面。あとで `resend`） | 送信メールはログ出力のみ |
+| `MAIL_FROM_ADDRESS` | `noreply@ec-portfolio.example.jp` | |
 | `MAIL_FROM_NAME` | `EC-PORTFOLIO` | |
 
 ## デプロイ時のマイグレーション
