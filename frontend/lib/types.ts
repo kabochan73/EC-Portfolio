@@ -226,6 +226,15 @@ export type DashboardStats = {
   recent_orders: AdminOrderListItem[];
 };
 
+// Admin/CategoryResource（公開用と違い position と商品数を返す）
+export type AdminCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  position: number;
+  products_count: number;
+};
+
 // ── 各関数専用の入力型 ──────────────────────────────────────
 
 export type LoginPayload = { email: string; password: string };
@@ -236,6 +245,7 @@ export type RegisterPayload = {
   password_confirmation: string;
 };
 export type UpdateProfilePayload = { name: string; email: string };
+export type AdminCategoryPayload = { name: string; slug: string };
 export type UpdatePasswordPayload = {
   current_password: string;
   password: string;
