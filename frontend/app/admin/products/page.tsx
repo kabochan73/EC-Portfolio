@@ -35,7 +35,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl tracking-widest uppercase">Products</h1>
         <Link
           href="/admin/products/new"
