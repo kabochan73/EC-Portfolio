@@ -470,6 +470,15 @@
   - seed は `railway ssh --service backend "php artisan db:seed --force"`（`railway run` は内部 DB に届かない）
 - 通し確認: カタログ / 決済(4242) → Webhook → `paid` / queue が注文確認メールジョブ処理。詳細は `docs/04-deployment-railway.md`
 
+**Step 53 — 2026-09-08 CD（GitHub 連携）**
+- frontend / backend / queue を GitHub `kabochan73/EC-Portfolio` に接続（Root Directory `/frontend` `/backend` `/backend`）。`main` push で 3 サービス自動デプロイ
+- 詰まり: `frontend/public/` が空で git 追跡されず、GitHub 経由ビルドで `COPY --from=build /app/public` が失敗（`railway up` はローカル FS をアップするので通っていた）→ `public/.gitkeep` + Dockerfile に `mkdir -p public`
+
+**調整 — 2026-09-09 管理者アカウントを .env 化 + 本番 DB リフレッシュ**
+- `config/admin.php`（`ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD`、未設定は Store Admin / admin@ec-portfolio.example.jp / password）。`AdminUserSeeder` は `config('admin.*')` 経由（本番は config:cache が効くので env() 不可）
+- 本番 `migrate:fresh --seed --force`（デモデータのみなので破棄可）。Railway backend/queue に `ADMIN_*` を設定してから実行
+- `ProductSeeder` を各カテゴリ 4 商品ずつ（計 16）に。bottoms に Pleated Chino、outerwear に Cotton Field Jacket を追加
+
 ## 残タスク
-- Step 53 CD: GitHub 連携（`main` push で自動デプロイ）
 - Resend 導入・実画像アップロードは任意
+- 本番 admin パスワードは seed 値（変更推奨）

@@ -45,11 +45,13 @@ class ProductSeeder extends Seeder
                 ['Wide Tailored Trousers', 28000, self::BOTTOMS_CHART, null],
                 ['Relaxed Denim', 26000, self::BOTTOMS_CHART, null],
                 ['Drawstring Shorts', 15000, self::BOTTOMS_CHART, ['Black', 'Olive']],
+                ['Pleated Chino', 23000, self::BOTTOMS_CHART, ['Beige', 'Charcoal']],
             ],
             'outerwear' => [
                 ['Unlined Chore Jacket', 38000, self::OUTER_CHART, null],
                 ['Wool Balmacaan Coat', 72000, self::OUTER_CHART, null],
                 ['Recycled Nylon Shell', 32000, self::OUTER_CHART, ['Black', 'Steel']],
+                ['Cotton Field Jacket', 36000, self::OUTER_CHART, null],
             ],
             'accessories' => [
                 ['Ribbed Wool Beanie', 9000, null, ['Black', 'Grey', 'Camel']],
