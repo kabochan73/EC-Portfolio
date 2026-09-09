@@ -11,12 +11,12 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        // 管理者1人。冪等（email で updateOrCreate）。
+        // 管理者1人。認証情報は config/admin.php（＝ .env）から。冪等（email で updateOrCreate）。
         User::updateOrCreate(
-            ['email' => 'admin@ec-portfolio.example.jp'],
+            ['email' => config('admin.email')],
             [
-                'name' => 'Store Admin',
-                'password' => Hash::make('password'),
+                'name' => config('admin.name'),
+                'password' => Hash::make(config('admin.password')),
                 'role' => UserRole::Admin,
                 'email_verified_at' => now(),
             ],
