@@ -5,7 +5,7 @@
 > - backend: `https://backend-production-6d3d.up.railway.app`（serversideup、port 8080）
 > - queue / Postgres / bucket `ec-portfolio-media-6b21n`（region sin）は内部のみ
 > - **Stripe は test モードのまま**（live キー不使用）。webhook エンドポイントは test モードで作成し `whsec_` を backend に設定
-> - **Resend は入れない** → `MAIL_MAILER=log`（メールは queue のログに出るだけ）
+> - **Resend 導入済み（2026-09-09）** → `MAIL_MAILER=resend` + `RESEND_API_KEY`。ドメイン未検証なので送信元は `onboarding@resend.dev`（Resend の制約で **アカウント所有者のメール宛にしか届かない** = デモでは自分で登録する分は届く）。独自ドメインを検証すれば誰にでも送れる
 > - **frontend の `API_URL` = backend 公開 URL**（`railway.internal` はビルド時に解決不可。ISR プリレンダーが `next build` 中に Laravel を叩くため）
 >
 > **デプロイで踏んだ罠**
@@ -99,8 +99,9 @@ Railway では各サービスの Root Directory を `frontend` / `backend` に�
 | `STRIPE_SECRET_KEY` | `sk_test_...`（**test のまま**） | stripe-php |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...`（**test モードの Webhook エンドポイント**のもの） | Webhook 署名検証 |
 | `STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | `/api/checkout/payment-intent` のレスポンスに載せる（フロントの Payment Element 初期化に使う） |
-| `MAIL_MAILER` | `log`（当面。あとで `resend`） | 送信メールはログ出力のみ |
-| `MAIL_FROM_ADDRESS` | `noreply@ec-portfolio.example.jp` | |
+| `MAIL_MAILER` | `resend` | queue の SendXxxJob がメール送信に使う |
+| `RESEND_API_KEY` | `re_...` | Resend API キー |
+| `MAIL_FROM_ADDRESS` | `onboarding@resend.dev` | ドメイン未検証のため Resend 共有。検証後は `noreply@<ドメイン>` |
 | `MAIL_FROM_NAME` | `EC-PORTFOLIO` | |
 
 ## デプロイ時のマイグレーション
