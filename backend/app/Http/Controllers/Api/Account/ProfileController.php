@@ -19,7 +19,7 @@ class ProfileController extends Controller
         return UserResource::make($request->user());
     }
 
-    /** PUT /api/me … 氏名・メール更新。メール変更で email_verified は false に戻る。 */
+    /** PUT /api/me … 氏名・メール更新。 */
     public function update(UpdateProfileRequest $request, UpdateProfile $updateProfile): UserResource
     {
         $user = $updateProfile->execute(

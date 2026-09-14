@@ -105,32 +105,6 @@ export async function updatePassword(
   });
 }
 
-/** POST /api/email/verification-notification。検証メール再送。認証済みなら Laravel 側で 204 */
-export async function resendVerificationEmail(token: string): Promise<void> {
-  await apiFetch<void>("/api/email/verification-notification", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
-/**
- * GET /api/email/verify/{id}/{hash}?expires=&signature=（signed:relative）。
- * フロントの /verify-email 着地時、クエリを組み立ててここから叩く。成功時 204。
- */
-export async function verifyEmail(
-  token: string,
-  params: { id: string; hash: string; expires: string; signature: string },
-): Promise<void> {
-  const query = new URLSearchParams({
-    expires: params.expires,
-    signature: params.signature,
-  }).toString();
-
-  await apiFetch<void>(`/api/email/verify/${params.id}/${params.hash}?${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
 /** POST /api/forgot-password。存在の有無に関わらず常に成功（中立メッセージ） */
 export async function sendPasswordReset(payload: ForgotPasswordPayload): Promise<{ message: string }> {
   return apiFetch<{ message: string }>("/api/forgot-password", {

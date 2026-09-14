@@ -79,7 +79,6 @@ body ではなくクエリ or POST。`variant_id` の配列を渡し、各 varia
 ### POST /api/register
 body: `name`, `email`, `password`, `password_confirmation`
 → 201 `{ "data": { user }, "token": "<plain-text-token>" }`
-副作用: `VerifyEmailMail` を queue に dispatch。
 
 ### POST /api/login  （`throttle:login` = メール+IP で 5回/分）
 body: `email`, `password` → 200 `{ "data": { user }, "token": "..." }` / 失敗 422
@@ -88,23 +87,15 @@ body: `email`, `password` → 200 `{ "data": { user }, "token": "..." }` / 失�
 現在のトークンを失効 → 204
 
 ### GET /api/me （要認証）
-→ `{ "data": { id, name, email, role, email_verified: bool } }`
+→ `{ "data": { id, name, email, role } }`
 
 ### PUT /api/me （要認証）
 body: `name`, `email` → 更新後の user。
-メール変更時: `email_verified_at` を null に戻し、新アドレスへ検証メールを dispatch。
 
 ### PUT /api/me/password （要認証）
 body: `current_password`, `password`, `password_confirmation` → 204
 
-## メール認証（R3 追加）
-
-### POST /api/email/verification-notification （要認証、`throttle:6,1`）
-現在のユーザーへ検証メールを再送 → 202。認証済みなら 204（何もしない）。
-
-### GET /api/email/verify/{id}/{hash} （署名付き URL、`signed` ミドルウェア、`throttle:6,1`）
-Laravel 標準の検証。成功 → 204（または `{ "data": { user } }`）。
-BFF は `/verify-email` 着地時にクエリの `id/hash/expires/signature` を組み立ててこの URL を叩く。
+メール認証は実装しない（2026-09-14 撤去。ポートフォリオ用途のため、登録だけで購入まで進める。`docs/rebuild-log.md`）。
 
 ## パスワードリセット（R3 追加）
 
@@ -130,7 +121,7 @@ body: `recipient_name`, `postal_code`, `prefecture`, `city`, `address_line1`, `a
 
 ## 注文（要認証）
 
-### POST /api/orders  （要メール認証 = `verified` ミドルウェア）
+### POST /api/orders  （要認証。メール認証は不要 — ポートフォリオ用途のため誰でも購入体験できるようにしている）
 ```json
 { "items": [ { "variant_id": 55, "quantity": 2 } ],
   "address_id": 3, "address": null, "save_address": false }
@@ -148,7 +139,7 @@ body: `recipient_name`, `postal_code`, `prefecture`, `city`, `address_line1`, `a
 
 ## 決済（R3 追加）
 
-### POST /api/checkout/payment-intent  （要認証、要メール認証）
+### POST /api/checkout/payment-intent  （要認証。メール認証は不要）
 body: `{ "order_number": "EC-20260907-0001" }`
 - 対象注文が本人・`pending` であることを検証（それ以外は 409）
 - 金額をサーバーで再計算（`orders.total` と一致確認。ズレたら 409 = 注文が古い）
@@ -183,8 +174,6 @@ body: `{ "order_number": "EC-20260907-0001" }`
 |---|---|
 | `POST /bff/login` `register` `logout` | `/api/login` 等。token を httpOnly Cookie に |
 | `GET /bff/me` | `/api/me` |
-| `POST /bff/email/verification-notification` | `/api/email/verification-notification` |
-| `POST /bff/email/verify` | `/api/email/verify/{id}/{hash}?...`（クエリを組み立て） |
 | `POST /bff/forgot-password` `reset-password` | 同名 |
 | `GET/POST/PUT/DELETE /bff/addresses...` | `/api/addresses...` |
 | `POST/GET /bff/orders` `GET /bff/orders/{number}` | `/api/orders...` |

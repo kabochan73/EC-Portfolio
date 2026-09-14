@@ -128,15 +128,6 @@ it('returns 404 for another users order', function () {
         ->assertNotFound();
 });
 
-it('requires a verified email', function () {
-    $user = User::factory()->unverified()->create();
-    $order = Order::factory()->for($user)->create();
-
-    $this->actingAs($user)
-        ->postJson('/api/checkout/payment-intent', ['order_number' => $order->order_number])
-        ->assertStatus(403);
-});
-
 it('requires authentication', function () {
     $this->postJson('/api/checkout/payment-intent', ['order_number' => 'EC-x'])->assertUnauthorized();
 });

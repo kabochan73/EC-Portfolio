@@ -12,7 +12,7 @@ use App\Models\User;
  */
 function customerWithVariant(int $stock = 10, int $price = 12_000): array
 {
-    $user = User::factory()->create(); // verified
+    $user = User::factory()->create();
     $category = Category::factory()->create(['slug' => 'tops']);
     $product = Product::factory()->for($category)->create(['price' => $price]);
     $variant = ProductVariant::factory()->for($product)->create(['size' => 'M', 'stock' => $stock]);
@@ -170,22 +170,6 @@ it('does not save a new address by default', function () {
         ->assertCreated();
 
     expect($user->addresses()->count())->toBe(0);
-});
-
-it('requires a verified email', function () {
-    $user = User::factory()->unverified()->create();
-    $category = Category::factory()->create(['slug' => 'tops']);
-    $product = Product::factory()->for($category)->create();
-    $variant = ProductVariant::factory()->for($product)->create(['stock' => 5]);
-
-    $this->actingAs($user)
-        ->postJson('/api/orders', [
-            'items' => [['variant_id' => $variant->id, 'quantity' => 1]],
-            'address' => newAddressPayload(),
-        ])
-        ->assertStatus(403);
-
-    expect($user->orders()->count())->toBe(0);
 });
 
 it('requires authentication', function () {

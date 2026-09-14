@@ -13,8 +13,7 @@ it('registers a customer and returns a token', function () {
         ->assertCreated()
         ->assertJsonPath('data.email', 'aoi@example.com')
         ->assertJsonPath('data.role', 'customer')
-        ->assertJsonPath('data.email_verified', false)
-        ->assertJsonStructure(['data' => ['id', 'name', 'email', 'role', 'email_verified'], 'token']);
+        ->assertJsonStructure(['data' => ['id', 'name', 'email', 'role'], 'token']);
 
     $user = User::where('email', 'aoi@example.com')->firstOrFail();
     expect($user->role)->toBe(UserRole::Customer)
@@ -84,8 +83,7 @@ it('returns the current user from /api/me', function () {
     $this->actingAs($user)
         ->getJson('/api/me')
         ->assertOk()
-        ->assertJsonPath('data.id', $user->id)
-        ->assertJsonPath('data.email_verified', true);
+        ->assertJsonPath('data.id', $user->id);
 });
 
 it('rejects /api/me without a token', function () {

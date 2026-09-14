@@ -5,7 +5,7 @@
 ## 認可
 
 - `users.role`（`customer` / `admin`、default `customer`）。シーダーで管理者1人
-- `GET /api/me` は `role` と `email_verified` を返す
+- `GET /api/me` は `role` を返す（メール認証は実装しないため `email_verified` は無い。2026-09-14）
 - Next.js: `middleware.ts` で `/admin/*` を Cookie 有無だけチェック。実 role 確認は Server Component の `requireAdmin()`（`role !== 'admin'` なら `/` へ）
 - Laravel: `/api/admin/*` は `auth:sanctum` + `admin` ミドルウェア（`EnsureAdmin`、`$user->role === UserRole::Admin`）。認証済みだが権限なしは 403
 - ログインは通常の `/login` を共用

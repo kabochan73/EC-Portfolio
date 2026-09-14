@@ -17,7 +17,6 @@
 | `/register` | 会員登録 | 公開 |
 | `/forgot-password` | パスワード再設定メールの送信 | 公開 |
 | `/reset-password` | 新パスワード設定（メールのリンクから） | 公開（トークン必須） |
-| `/verify-email` | メール認証の案内・再送 | 要ログイン |
 | `/account` | マイページ ダッシュボード | 要ログイン |
 | `/account/orders` | 注文履歴 | 要ログイン |
 | `/account/orders/[number]` | 注文詳細 | 要ログイン |
@@ -31,12 +30,9 @@
 未ログインで要ログインページに来たら `/login?redirect=<元パス>` に転送。
 `/admin/*` は `middleware.ts` で Cookie 有無をチェック、実際の role 確認は Server Component の `requireAdmin()`。
 
-## メール認証の扱い（R3 で追加）
+## メール認証について
 
-- 登録直後はログイン可能。ただし **`/checkout` の注文確定は `email_verified_at` 必須**（未認証なら `/verify-email` へ誘導）。
-- `/verify-email`: 現在のメールアドレスへ検証メールを再送するボタン。既に認証済みなら `/account` へ。
-- メール内のリンク（署名付き URL）は Next.js の `/verify-email?token=...&id=...` 形式で受け、BFF が Laravel の検証エンドポイントへ中継（`docs/03-api.md` / `docs/10-email.md`）。
-- 認証が要らない範囲: 商品閲覧・カート・住所録・プロフィール編集。ガードするのは注文確定のみ（体験を止めすぎない）。
+実装しない（2026-09-14 撤去）。ポートフォリオ用途のため、登録さえすれば誰でも注文確定・決済まで一通り体験できる。詳細は `docs/rebuild-log.md`。
 
 ## 共通レイアウト
 
@@ -104,10 +100,9 @@ R2 から不変。
 
 ### `/checkout` チェックアウト（配送先 → 注文作成）
 
-1. **メール未認証なら `/verify-email` へリダイレクト**（Server Component で判定）
-2. 配送先: 住所録から選択、または新規入力（「住所録に保存」チェック）
-3. 注文内容の確認（明細・送料・合計）
-4. `PLACE ORDER` → `POST /bff/orders`（→ Laravel `POST /api/orders`）→ `status = pending` で注文作成、在庫引き当て → `/checkout/payment?order=<number>` へ
+1. 配送先: 住所録から選択、または新規入力（「住所録に保存」チェック）
+2. 注文内容の確認（明細・送料・合計）
+3. `PLACE ORDER` → `POST /bff/orders`（→ Laravel `POST /api/orders`）→ `status = pending` で注文作成、在庫引き当て → `/checkout/payment?order=<number>` へ
 
 ### `/checkout/payment` 決済
 
@@ -126,7 +121,7 @@ R2 から不変。
 ### `/login` / `/register`
 
 - ミニマルなフォーム（メール・パスワード、登録時は氏名も）
-- 登録成功 → 検証メール送信 → `redirect` 先 or `/account`（`/verify-email` の案内バナーを表示）
+- 登録成功 → `redirect` 先 or `/account`（メール認証は実装しないため、確認メールも案内バナーも無し。2026-09-14）
 - ログイン成功 → `redirect` 先 or `/account`
 - ログインフォームに `Forgot your password?` → `/forgot-password`
 - バリデーションエラーはフィールド下に表示
@@ -141,17 +136,10 @@ R2 から不変。
 - URL の `token` / `email` を hidden で保持。新パスワード + 確認を入力 → `POST /bff/reset-password`
 - 成功 → `/login`（「パスワードを変更しました」）
 
-### `/verify-email`
-
-- 認証済みなら `/account` へ
-- 未認証: 「`<email>` に確認メールを送りました。届かない場合は再送してください」＋ 再送ボタン（`POST /bff/email/verification-notification`、60 秒スロットル）
-- メールのリンク着地: `/verify-email?id=..&hash=..&expires=..&signature=..` → クライアントで `POST /bff/email/verify` に中継 → 成功で「認証が完了しました」＋ `/account`
-
 ### `/account` ダッシュボード
 
 - `ようこそ, {name}`
 - `ORDERS` / `ADDRESSES` / `PROFILE` / `LOGOUT`（admin なら `ADMIN PANEL` も）
-- メール未認証なら上部に認証を促すバナー（`/verify-email` へのリンク）
 
 ### `/account/orders` 注文履歴
 
@@ -170,7 +158,7 @@ R2 から不変。カード一覧（デフォルトにバッジ）、追加・�
 
 ### `/account/profile` プロフィール
 
-- 氏名・メール変更フォーム（**メール変更時は `email_verified_at` を null に戻し、再認証メールを送る**）
+- 氏名・メール変更フォーム
 - パスワード変更フォーム（現パスワード必須）
 
 ## 業務ルール

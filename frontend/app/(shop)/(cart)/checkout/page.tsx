@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import CheckoutClient from "@/components/checkout/CheckoutClient";
 import { getAddresses } from "@/lib/addresses";
@@ -8,13 +7,8 @@ import { requireAuth } from "@/lib/auth";
 export const metadata: Metadata = { title: "Checkout" };
 
 export default async function CheckoutPage() {
-  const { user, token } = await requireAuth("/checkout");
-
-  // 注文にはメール認証が必須（Laravel 側 verified ミドルウェア）。
-  // 未認証なら先に /verify-email へ誘導する。
-  if (!user.email_verified) {
-    redirect("/verify-email");
-  }
+  // ポートフォリオ用途のため注文にメール認証は必須にしない（誰でも一通り購入体験できるように）。
+  const { token } = await requireAuth("/checkout");
 
   const addresses = await getAddresses(token);
 

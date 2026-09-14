@@ -3,28 +3,24 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
-it('updates the name without touching verification', function () {
+it('updates the name', function () {
     $user = User::factory()->create(['name' => 'Old', 'email' => 'keep@example.com']);
 
     $this->actingAs($user)
         ->putJson('/api/me', ['name' => 'New Name', 'email' => 'keep@example.com'])
         ->assertOk()
-        ->assertJsonPath('data.name', 'New Name')
-        ->assertJsonPath('data.email_verified', true);
-
-    expect($user->fresh()->email_verified_at)->not->toBeNull();
+        ->assertJsonPath('data.name', 'New Name');
 });
 
-it('resets email verification when the email changes', function () {
+it('updates the email', function () {
     $user = User::factory()->create(['email' => 'before@example.com']);
 
     $this->actingAs($user)
         ->putJson('/api/me', ['name' => $user->name, 'email' => 'after@example.com'])
         ->assertOk()
-        ->assertJsonPath('data.email', 'after@example.com')
-        ->assertJsonPath('data.email_verified', false);
+        ->assertJsonPath('data.email', 'after@example.com');
 
-    expect($user->fresh()->email_verified_at)->toBeNull();
+    expect($user->fresh()->email)->toBe('after@example.com');
 });
 
 it('rejects an email already used by another user', function () {

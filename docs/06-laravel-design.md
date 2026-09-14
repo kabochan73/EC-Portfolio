@@ -215,12 +215,10 @@ enum OrderStatus: string
 
 ---
 
-## 6. メール認証・パスワードリセット（Laravel 標準を薄く使う）
+## 6. パスワードリセット（Laravel 標準を薄く使う）
 
-- `User implements MustVerifyEmail`。ただし通知は**カスタム Mailable**（`docs/10`）を使うため、`sendEmailVerificationNotification()` を override して `SendEmailVerificationJob` を dispatch
-- 検証 URL / リセット URL は **frontend のパス**を指す。`VerifyEmail::createUrlUsing()` / `ResetPassword::createUrlUsing()` を `AppServiceProvider::boot()` で設定し、`FRONTEND_URL . '/verify-email?...'` を生成
-- `POST /api/orders` に `verified` ミドルウェア（`EnsureEmailIsVerified`）。他の個人化エンドポイントには付けない（体験を止めすぎない。`docs/01`）
-- パスワードリセットは `Password` broker をそのまま。`password_reset_tokens` テーブル利用
+- **メール認証機能は実装しない**（2026-09-14・R3 調整）。ポートフォリオ用途で、誰でもアカウント登録だけで購入まで一通り体験できるようにするため、`verified` ミドルウェア・検証メール送信・`/verify-email` 系エンドポイントを全て撤去した（`User` は `MustVerifyEmail` を実装しない、`email_verified_at` 列も無い）。撤去に至る過程は `docs/rebuild-log.md` 参照
+- パスワードリセットは `Password` broker をそのまま。`password_reset_tokens` テーブル利用。リセット URL は **frontend のパス**を指す（`SendPasswordResetJob` が `FRONTEND_URL . '/reset-password?...'` を自前で組み立てる。Laravel の `ResetPassword::createUrlUsing()` は使っていない）
 
 ---
 
@@ -264,11 +262,11 @@ app/
 ├── Domain/
 │   └── Order/            ShippingFeeCalculator  OrderNumberGenerator
 ├── Enums/                OrderStatus  StockStatus  UserRole
-├── Jobs/                 SendEmailVerificationJob  SendPasswordResetJob(通常は broker 任せ)  SendOrderConfirmationJob  SendOrderShippedJob
-├── Mail/                 VerifyEmailMail  ResetPasswordMail  OrderConfirmationMail  OrderShippedMail
+├── Jobs/                 SendPasswordResetJob(通常は broker 任せ)  SendOrderConfirmationJob  SendOrderShippedJob
+├── Mail/                 ResetPasswordMail  OrderConfirmationMail  OrderShippedMail
 ├── Http/
 │   ├── Controllers/Api/   Shop/  Auth/  Account/  Order/(OrderController CheckoutController)  Webhook/StripeController  Admin/
-│   ├── Middleware/        EnsureAdmin  EnsureEmailIsVerified(標準)
+│   ├── Middleware/        EnsureAdmin
 │   ├── Requests/          Auth/  Address/  Order/  Checkout/  Admin/{Category,Product,ProductImage,Variant,Order,Content}/
 │   └── Resources/         Shop/  Order/(OrderResource OrderListResource OrderItemResource)  Account/  Admin/
 ├── Exceptions/           InsufficientStockException  UnpublishedProductException  CategoryInUseException

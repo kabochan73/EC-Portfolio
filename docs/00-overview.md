@@ -13,9 +13,9 @@
 |---|---|
 | Stripe 決済（test mode） | チェックアウトに Payment Element。Webhook で注文を `paid` に遷移 |
 | 注文ステータス state machine | `pending → paid → shipped → completed` ＋ `cancelled`（在庫復元） |
-| トランザクションメール | メール認証 / パスワードリセット / 注文確認 / 発送通知。Resend（本番）/ Mailpit（ローカル） |
+| トランザクションメール | パスワードリセット / 注文確認 / 発送通知。Resend（本番）/ Mailpit（ローカル）。メール認証は実装しない（ポートフォリオ用途のため 2026-09-14 撤去。`docs/rebuild-log.md`） |
 | キュー | `QUEUE_CONNECTION=database` + 専用 worker。メール送信・Webhook 後処理をジョブ化。Redis は入れない |
-| メール認証・パスワードリセット フロー | R2 は列だけ存在してフロー未実装だった |
+| パスワードリセット フロー | R2 は列だけ存在してフロー未実装だった |
 | ISR + `revalidateTag` | カタログ読み取りと CMS コンテンツをキャッシュ、管理側の更新でオンデマンド無効化 |
 | 軽量 CMS | トップの Hero / Concept / Lookbook / About を管理画面から編集 |
 | 自動テスト（Pest 3） | Feature 中心 + 純粋ロジックの Unit。機能実装と並行して書く |

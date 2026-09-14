@@ -1,6 +1,6 @@
 # フロントエンド設計（Next.js 15 / App Router）（R3）
 
-土台は `docs/00`（スタック）・`docs/01`（サイトマップ）・`docs/03`（API と BFF 対応表）。ここは「フロントをどう組むか」に絞る。R2 の設計を継承し、R3 の追加（ISR / Stripe Payment Element / メール認証 UX）を織り込む。
+土台は `docs/00`（スタック）・`docs/01`（サイトマップ）・`docs/03`（API と BFF 対応表）。ここは「フロントをどう組むか」に絞る。R2 の設計を継承し、R3 の追加（ISR / Stripe Payment Element）を織り込む。メール認証は実装しない（2026-09-14 撤去。`docs/rebuild-log.md`）。
 
 ---
 
@@ -47,14 +47,12 @@ frontend/
 │   │   │   ├── forgot-password/page.tsx          # ← R3
 │   │   │   └── reset-password/page.tsx           # ← R3
 │   │   └── (account)/
-│   │       ├── verify-email/page.tsx             # ← R3
 │   │       └── account/…
 │   ├── admin/                    # 管理画面。独自レイアウト
 │   │   └── content/page.tsx      # ← R3 CMS 編集
 │   ├── media/[...key]/route.ts   # S3 プロキシ
 │   └── bff/
 │       ├── login  register  logout  me  me/password
-│       ├── email/verify  email/verification-notification       # ← R3
 │       ├── forgot-password  reset-password                     # ← R3
 │       ├── addresses/…  orders  orders/[number]
 │       ├── cart/validate                                       # ← R3（明示ルート化）
@@ -142,21 +140,13 @@ BFF は Laravel の `{ message, errors }` をそのまま同ステータスで�
 
 ---
 
-## 4. 認証（R2 + メール認証）
+## 4. 認証（R2 と同じ。メール認証は実装しない）
 
 - トークンは httpOnly Cookie `ecp_token`（`secure` は本番のみ / `sameSite=lax` / `path=/` / 30日）。
 - Cookie 名は `lib/constants.ts` の `SESSION_COOKIE_NAME`（`middleware.ts`（Edge）と `lib/auth.ts`（Node）両方から参照）。
-- `lib/auth.ts`（サーバー専用）: `getSessionToken()` / `setSessionCookie` / `clearSessionCookie` ＋ `loginUser` `registerUser` `logoutUser` `fetchCurrentUser` `updateProfile` `updatePassword` `sendVerificationEmail` `verifyEmail` `sendPasswordReset` `resetPassword`。
+- `lib/auth.ts`（サーバー専用）: `getSessionToken()` / `setSessionCookie` / `clearSessionCookie` ＋ `loginUser` `registerUser` `logoutUser` `fetchCurrentUser` `updateProfile` `updatePassword` `sendPasswordReset` `resetPassword`。
 - `middleware.ts`: `/account/*` `/checkout/*` `/admin/*` は **Cookie の有無だけ**。無ければ `/login?redirect=`。
-- **メール認証ガードは `/checkout` の Server Component**で `fetchCurrentUser()` の `email_verified` を見て、false なら `redirect('/verify-email')`。middleware には入れない（Edge で API を叩きたくない）。
-- `/account` と `/checkout` に `VerifyEmailBanner`（未認証時のみ表示）。
-
-### メール認証リンクの着地
-
-1. メール内リンク = `${FRONTEND_URL}/verify-email?id=..&hash=..&expires=..&signature=..`（Laravel が生成）
-2. `/verify-email` の Client Component が、クエリに `signature` があれば即 `POST /bff/email/verify`（body にクエリ全部）
-3. BFF が `${API_URL}/api/email/verify/${id}/${hash}?expires=..&signature=..` を Bearer 付きで叩く（**要ログイン**。未ログインなら `/login?redirect=/verify-email?...`）
-4. 成功 → 「認証が完了しました」＋ `/account` リンク
+- メール認証は実装しない（2026-09-14 撤去。ポートフォリオ用途のため、登録さえすれば誰でもチェックアウトまで進める）。`docs/rebuild-log.md` 参照。
 
 ---
 
@@ -271,7 +261,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 2. **トップページ（CMS 駆動 + ISR）**: `(catalog)/page.tsx` — Hero / Concept / Lookbook / CategoryGrid / About + `ProductCard` + `ProductMedia` + `lib/{products,categories,content}.ts`
 3. **商品詳細（ISR）**: Gallery / VariantSelector / Accordion / SizeChartTable / related、`notFound()`
 4. **カート**: `lib/stores/cart.ts` / `CartHydration` / `useCartValidation` / `/bff/cart/validate`
-5. **認証 + メール認証 + パスワードリセット**: login / register / forgot-password / reset-password / verify-email + `app/bff/*` + `lib/auth.ts` + `middleware.ts`
+5. **認証 + パスワードリセット**: login / register / forgot-password / reset-password + `app/bff/*` + `lib/auth.ts` + `middleware.ts`
 6. **マイページ**: `account/*` + `app/bff/{me,me/password,addresses,orders}` + `VerifyEmailBanner`
 7. **チェックアウト（配送先 → 注文作成）**: `/checkout` + `OrderReview` + `POST /bff/orders`
 8. **決済（Stripe）**: `StripeProvider` / `PaymentForm` / `/checkout/payment` / `/checkout/complete` + `useOrderStatusPolling` + `/bff/checkout/payment-intent`

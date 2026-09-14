@@ -144,13 +144,12 @@ Bottoms の columns 例: `["ウエスト", "股上", "股下", "わたり幅", "
 | id | bigserial | PK |
 | name | varchar(255) | 氏名 |
 | email | varchar(255) | UNIQUE |
-| email_verified_at | timestamp | nullable。**R3 で検証フローを実装** |
 | password | varchar(255) | bcrypt |
 | role | varchar(20) | `customer` / `admin`、default `customer` |
 | remember_token | varchar(100) | |
 | created_at / updated_at | timestamp | |
 
-シーダーで管理者1人（`role = 'admin'`、`email_verified_at` セット済み）。ダミー顧客は手動投入。
+`email_verified_at` は無い（メール認証は実装しない。2026-09-14 撤去。`docs/rebuild-log.md`）。シーダーで管理者1人（`role = 'admin'`）。ダミー顧客は手動投入。
 
 ---
 

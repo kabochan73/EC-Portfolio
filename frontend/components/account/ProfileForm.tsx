@@ -48,11 +48,7 @@ export default function ProfileForm({ user }: { user: User }) {
 
     const body = (await res.json()) as ApiResource<User>;
     queryClient.setQueryData(["session"], body);
-    setNotice(
-      body.data.email !== user.email
-        ? "保存しました。新しいメールアドレスに確認メールを送りました。"
-        : "保存しました。",
-    );
+    setNotice("保存しました。");
     router.refresh();
   }
 

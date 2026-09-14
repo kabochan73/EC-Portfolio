@@ -18,8 +18,8 @@ export default async function PaymentPage({ searchParams }: PageProps) {
   const { order: orderNumber } = await searchParams;
   if (!orderNumber) redirect("/account/orders");
 
-  const { user, token } = await requireAuth(`/checkout/payment?order=${orderNumber}`);
-  if (!user.email_verified) redirect("/verify-email");
+  // ポートフォリオ用途のため決済にメール認証は必須にしない。
+  const { token } = await requireAuth(`/checkout/payment?order=${orderNumber}`);
 
   const order = await getMyOrder(token, orderNumber);
   if (!order) redirect("/account/orders");

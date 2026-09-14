@@ -16,11 +16,10 @@ R2 は「テストを機能実装と並行して書く」と決めていたの�
 |---|---|
 | カタログ | 公開商品のみ一覧に出る / 未公開 slug は 404 / `?category` `?new` フィルタ / `stock_status` の算出 |
 | カート再検証 | 非公開・売り切れ variant が `available: false` |
-| 認証 | 登録で 201 + token + 検証メールが queue に載る / ログイン失敗 422 / `throttle:login` / `/api/me` の `email_verified` |
-| メール認証 | 署名 URL で verified になる / 署名不正は 403 / 認証済みで再送は 204 |
+| 認証 | 登録で 201 + token / ログイン失敗 422 / `throttle:login` / `/api/me` の中身（メール認証は実装しないため対象外・2026-09-14） |
 | パスワードリセット | `forgot-password` は存在しないメールでも 200 / トークンで変更成功 / 無効トークン 422 |
 | 住所録 | 本人のみ / 他人の id は 404 / デフォルト設定で他が false 化 |
-| 注文作成 | 在庫不足 422 + 在庫ロールバック / 未公開商品混入 422 / 金額はサーバー再計算（クライアント値を無視）/ 送料しきい値 / `pending` で作成 + 在庫減算 / **メール未認証は 403** |
+| 注文作成 | 在庫不足 422 + 在庫ロールバック / 未公開商品混入 422 / 金額はサーバー再計算（クライアント値を無視）/ 送料しきい値 / `pending` で作成 + 在庫減算 |
 | 決済 | payment-intent 作成（本人・pending のみ）/ 非 pending は 409 / 金額ズレ 409 / キー未設定 503 / 既存 PaymentIntent の再利用 |
 | Webhook | `payment_intent.succeeded` で `paid` + 確認メール dispatch / 二重配信で1回だけ / 署名不正 400 / 未対応イベントは 200 / `payment_intent.canceled` で在庫復元 |
 | 注文ステータス | state machine の許可遷移 / 不正遷移 422 / `paid→cancelled` で返金 + 在庫復元 / `paid→shipped` で発送メール |
@@ -41,7 +40,7 @@ backend/tests/
 ├── Pest.php                 # uses(RefreshDatabase::class)->in('Feature')
 ├── TestCase.php
 ├── Feature/
-│   ├── Catalog/  Auth/  EmailVerification/  PasswordReset/  Address/
+│   ├── Catalog/  Auth/  PasswordReset/  Address/
 │   ├── Order/    Payment/  Webhook/
 │   └── Admin/    Content/
 ├── Unit/
@@ -96,18 +95,18 @@ it('marks the order paid', function () {
 
 ```php
 Mail::fake(); Queue::fake();
-// 登録
-postJson('/api/register', [...])->assertCreated();
-Queue::assertPushed(SendEmailVerificationJob::class);
+// パスワードリセット
+postJson('/api/forgot-password', ['email' => $user->email])->assertOk();
+Queue::assertPushed(SendPasswordResetJob::class);
 // ジョブを同期実行してメールを確認したいときは Bus::fake() を使わず、Job を直接 new して handle()
-(new SendEmailVerificationJob($user->id))->handle();
-Mail::assertSent(VerifyEmailMail::class, fn ($m) => $m->hasTo($user->email));
+(new SendPasswordResetJob($user->id, 'token'))->handle();
+Mail::assertSent(ResetPasswordMail::class, fn ($m) => $m->hasTo($user->email));
 ```
 
 ## Factory 方針
 
 - 全モデルに Factory。Seeder は Factory を呼ぶ。
-- 状態メソッド: `Product::factory()->unpublished()`、`ProductVariant::factory()->soldOut()` / `->lowStock()`、`Order::factory()->pending()` / `->paid()` / `->shipped()`、`User::factory()->admin()` / `->unverified()`。
+- 状態メソッド: `Product::factory()->unpublished()`、`ProductVariant::factory()->soldOut()` / `->lowStock()`、`Order::factory()->pending()` / `->paid()` / `->shipped()`、`User::factory()->admin()`。
 - `Order::factory()` は `order_items` を伴わない素の注文も作れる（一覧テスト用）。`->withItems(int $n)` で明細付き。
 - `OrderItemFactory` の `image_url` は空文字デフォルト（R2 で未着手だった調整をここで入れる。画像必須にしない）。
 
@@ -115,7 +114,7 @@ Mail::assertSent(VerifyEmailMail::class, fn ($m) => $m->hasTo($user->email));
 
 - 自動 E2E（Playwright 等）は R3 でも**入れない**（一人の学習プロジェクトで維持コストに見合わない）。
 - 代わりに毎 Step: `docker compose exec frontend npx tsc --noEmit` + `npm run lint` を通す。
-- 主要導線（トップ表示・商品詳細・カート→チェックアウト→決済→完了・ログイン・メール認証・管理画面の CRUD・CMS 編集→反映）は CDP or 手動で1回ずつ確認し、`rebuild-log` に記録。
+- 主要導線（トップ表示・商品詳細・カート→チェックアウト→決済→完了・ログイン・管理画面の CRUD・CMS 編集→反映）は CDP or 手動で1回ずつ確認し、`rebuild-log` に記録。
 - CDP のモバイル幅は `Emulation.setDeviceMetricsOverride` を使う（R2 の反省。`--window-size` は効かない）。
 
 ## CI（任意・後回し可）

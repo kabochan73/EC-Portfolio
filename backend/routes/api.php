@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\Account\AddressController;
 use App\Http\Controllers\Api\Account\ProfileController;
 use App\Http\Controllers\Api\Auth\AuthController;
-use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Order\CheckoutController;
 use App\Http\Controllers\Api\Order\OrderController;
@@ -48,11 +47,6 @@ Route::get('/content', [SiteContentController::class, 'index']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
-// メール認証: 検証は署名付き URL（ホスト非依存の signed:relative）。BFF が中継する
-Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
-    ->middleware(['signed:relative', 'throttle:6,1'])
-    ->name('verification.verify');
-
 // パスワードリセット
 Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:6,1');
 Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
@@ -66,10 +60,6 @@ Route::post('/stripe/webhook', StripeController::class)
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
-        ->middleware('throttle:6,1')
-        ->name('verification.send');
-
     Route::get('/me', [ProfileController::class, 'show']);
     Route::put('/me', [ProfileController::class, 'update']);
     Route::put('/me/password', [ProfileController::class, 'updatePassword']);
@@ -82,12 +72,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/addresses/{address}/default', [AddressController::class, 'setDefault']);
 
     // --- 注文 ---
-    Route::post('/orders', [OrderController::class, 'store'])->middleware('verified'); // 作成は要メール認証
+    // メール認証は実装していない（2026-09-14・ポートフォリオ用途のため撤去）。
+    Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
 
-    // --- 決済（要メール認証） ---
-    Route::post('/checkout/payment-intent', [CheckoutController::class, 'paymentIntent'])->middleware('verified');
+    // --- 決済 ---
+    Route::post('/checkout/payment-intent', [CheckoutController::class, 'paymentIntent']);
 });
 
 // --- 管理画面（admin ロールのみ。定義は routes/admin.php。docs/05-admin.md） ---

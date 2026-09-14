@@ -479,6 +479,21 @@
 - 本番 `migrate:fresh --seed --force`（デモデータのみなので破棄可）。Railway backend/queue に `ADMIN_*` を設定してから実行
 - `ProductSeeder` を各カテゴリ 4 商品ずつ（計 16）に。bottoms に Pleated Chino、outerwear に Cotton Field Jacket を追加
 
+**調整 — 2026-09-09 Resend 導入**
+- `config/mail.php` の `resend` mailer・`config/services.php` の `resend.key` は Laravel 12 標準で既にあったため、`composer require resend/resend-php` のみで本番メール送信が有効に。ローカルは Mailpit のまま
+- Railway backend/queue に `MAIL_MAILER=resend` / `RESEND_API_KEY` / `MAIL_FROM_ADDRESS=onboarding@resend.dev`（ドメイン未検証のため Resend 共有ドメイン）
+- 制約: `onboarding@resend.dev` は **Resend アカウント所有者のメール宛にしか配信されない**。他アドレス宛はジョブが失敗し `failed_jobs` へ。独自ドメインを検証すれば解消
+- 本番で注文確認メールが実配信されることを確認済み（Stripe test 決済 → Webhook → queue → Resend `delivered`）
+
+**調整 — 2026-09-14 メール認証機能を撤去**
+- ポートフォリオ用途のため、誰でもアカウント登録だけで購入まで一通り体験できるようにしたい。段階的に着手:
+  1. まず `POST /api/orders` / `POST /api/checkout/payment-intent` から `verified` ミドルウェアを撤去（購入のゲートだけ外す）
+  2. 続けて `RegisterUser` の `sendEmailVerificationNotification()` 呼び出しも削除（登録時の自動送信を廃止）。未確認バナー（`VerifyEmailBanner`・`/account` 表示）も削除 — 自動送信が無いと全ユーザーに恒常表示されてしまい、購入のゲートでもないので意味を持たないため
+  3. 最終的に「購入もサンドボックスだし、確認メールくらいで十分では」という判断で**機能ごと撤去**に決定（Resend が `onboarding@resend.dev` の制約で本人以外に配信できないことも後押し）
+- 撤去した実体: `EmailVerificationController` / `SendEmailVerificationJob` / `VerifyEmailMail`（+ Blade ビュー）/ `GET /api/email/verify/{id}/{hash}` ルート / `POST /api/email/verification-notification` ルート / `User` の `MustVerifyEmail` 実装・`sendEmailVerificationNotification()` override / `users.email_verified_at` 列（新規マイグレーションで drop）/ `UserResource` の `email_verified` フィールド / フロントの `/verify-email` ページ・`VerifyEmailClient`・BFF `email/verify` `email/verification-notification` ルート・`lib/auth.ts` の検証ヘルパー・`lib/types.ts` の `email_verified`・`middleware.ts` の matcher
+- 残すもの: パスワードリセット（`Password` broker → `sendPasswordResetNotification` → `SendPasswordResetJob` → `ResetPasswordMail`）と購入後の注文確認・発送メールのみ
+- Pest: `EmailVerificationTest` は削除。`CreateOrderTest` / `CreatePaymentIntentTest` / `AuthApiTest` / `ProfileApiTest` から認証関連のケース・アサーションを削除
+
 ## 残タスク
-- Resend 導入・実画像アップロードは任意
+- 実画像アップロードは任意
 - 本番 admin パスワードは seed 値（変更推奨）

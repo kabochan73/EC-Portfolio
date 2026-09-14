@@ -136,7 +136,6 @@ export type User = {
   name: string;
   email: string;
   role: "customer" | "admin";
-  email_verified: boolean;
 };
 
 // Account/AddressResource
