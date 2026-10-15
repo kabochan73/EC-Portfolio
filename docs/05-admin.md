@@ -119,5 +119,5 @@ R2 から不変。
 - キー形式: 商品 `products/{product_id}/{ulid}.{ext}` / CMS `content/{key}/{ulid}.{ext}`
 - `product_images.path` はキーを保持。`url` は API リソースが `/media/{path}` として組み立て
 - 配信: Next.js `app/media/[...key]/route.ts` が `GetObject` して `Cache-Control: public, max-age=31536000, immutable` で返す
-- ローカルは MinIO（`FILESYSTEM_DISK=s3`、エンドポイントを MinIO に、`AWS_USE_PATH_STYLE_ENDPOINT=true`）
+- ローカルは RustFS（`FILESYSTEM_DISK=s3`、エンドポイントを RustFS に、`AWS_USE_PATH_STYLE_ENDPOINT=true`）
 - `Services/StorageService`（S3 互換バケットの薄いラッパ。`docs/06` で Service を使う数少ない箇所）

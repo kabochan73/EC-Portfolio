@@ -61,10 +61,10 @@ R2 から引き継ぐ非スコープ + R3 で新たに線を引くもの。
 | メール | Laravel Mail（Markdown）。本番 Resend / ローカル Mailpit（SMTP） |
 | キュー | `QUEUE_CONNECTION=database`（jobs テーブル）+ `queue:work` worker。Redis なし |
 | DB | PostgreSQL 16 |
-| 画像ストレージ | Railway Storage Bucket（private・S3互換）。Next.js の `/media` プロキシ経由で配信。ローカルは MinIO |
+| 画像ストレージ | Railway Storage Bucket（private・S3互換）。Next.js の `/media` プロキシ経由で配信。ローカルは RustFS |
 | backend アプリサーバー | nginx + php-fpm（`serversideup/php:8.4-fpm-nginx` をローカル・本番で共用） |
 | テスト | Pest 3（backend）。フロントは tsc + eslint + 主要導線の手動/CDP 確認 |
-| ローカル実行形態 | すべて Docker。`docker compose up -d` で frontend / backend / queue / db / minio / mailpit が起動 |
+| ローカル実行形態 | すべて Docker。`docker compose up -d` で frontend / backend / queue / db / rustfs / mailpit が起動 |
 | 本番実行形態 | Railway（Docker デプロイ） |
 
 原則ライブラリを増やさない方針は R2 から継続。R3 で追加するのは上表の Stripe 2 種・stripe-php・メールトランスポート・Pest のみ。理由は `rebuild-log.md` に残す。

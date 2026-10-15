@@ -2,7 +2,7 @@
 
 ## 方針
 
-- **`docker compose up -d` だけで開発環境が全部立ち上がる。** frontend / backend / queue / db / minio / mailpit をすべてコンテナで動かす。
+- **`docker compose up -d` だけで開発環境が全部立ち上がる。** frontend / backend / queue / db / rustfs / mailpit をすべてコンテナで動かす。
 - ホストに PHP / Composer / artisan を入れない。`php artisan serve` も `npm run dev` もホストでは打たない。
 - **例外**: frontend の `node_modules` だけはホストにも入れる（`cd frontend && npm ci`。IDE の TS サーバー / ESLint 用）。ホストの Node は `.nvmrc` の 22。
 - artisan / composer / npm / pint / pest はすべて `docker compose exec` 経由。
@@ -17,8 +17,8 @@
 | `backend` | `serversideup/php:8.4-fpm-nginx` | Laravel。nginx + php-fpm。artisan の実行先 | `8000`（→ 8080） |
 | `queue` | `serversideup/php:8.4-fpm-nginx`（`command` 上書き） | `php artisan queue:work`。メール送信ジョブを処理 | なし |
 | `db` | `postgres:16-alpine` | PostgreSQL 16 | `5432` |
-| `minio` | `minio/minio` | S3 互換ストレージ | `9000` / `9001` |
-| `createbuckets` | `minio/mc` | 起動時に一度だけ `ec-portfolio-media` を作る使い捨て | なし |
+| `rustfs` | `rustfs/rustfs` | S3 互換ストレージ（旧 MinIO。公式イメージが取得不可になり 2026-10 に置き換え） | `9000` / `9001`（コンソールは `/rustfs/console/`） |
+| `createbuckets` | `amazon/aws-cli` | 起動時に一度だけ `ec-portfolio-media` を作る使い捨て | なし |
 | `mailpit` | `axllent/mailpit` | ローカルの SMTP 受信箱。送信メールをここで確認（**R3 追加**） | `8025`（Web UI） |
 
 ### 通信経路
@@ -30,7 +30,7 @@
         ▼
      http://backend:8080 ── backend コンテナ（nginx → php-fpm → Laravel）
         ├─→ db:5432
-        ├─→ minio:9000
+        ├─→ rustfs:9000
         └─→ mailpit:1025（SMTP）
      queue コンテナ ──→ db:5432 / mailpit:1025（jobs を pull してメール送信）
 
@@ -108,7 +108,7 @@ backend:
   ports: ["8000:8080"]
   depends_on:
     db: { condition: service_healthy }
-    minio: { condition: service_healthy }
+    rustfs: { condition: service_healthy }
     mailpit: { condition: service_started }
 ```
 
@@ -133,7 +133,7 @@ Mac（Docker Desktop）向けに polling: `WATCHPACK_POLLING=true` / `CHOKIDAR_U
 | `./frontend` → `/app` | バインドマウント | Next のコード編集を即反映 |
 | `/app/node_modules` | 名前付きボリューム | OS 差回避。ホストの node_modules で上書きさせない |
 | `/app/.next` | 名前付きボリューム | ビルドキャッシュを速く |
-| db / minio のデータ | 名前付きボリューム | `down` してもデータを残す |
+| db / rustfs のデータ | 名前付きボリューム | `down` してもデータを残す |
 
 ## 環境変数（ローカル）
 
@@ -154,7 +154,7 @@ Mac（Docker Desktop）向けに polling: `WATCHPACK_POLLING=true` / `CHOKIDAR_U
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | `ecp` / `ecpsecret` |
 | `AWS_DEFAULT_REGION` | `us-east-1` |
 | `AWS_BUCKET` | `ec-portfolio-media` |
-| `AWS_ENDPOINT` | `http://minio:9000` |
+| `AWS_ENDPOINT` | `http://rustfs:9000` |
 | `AWS_USE_PATH_STYLE_ENDPOINT` | `true` |
 | `MAIL_MAILER` | `smtp` |
 | `MAIL_HOST` / `MAIL_PORT` | `mailpit` / `1025` |
@@ -169,7 +169,7 @@ Mac（Docker Desktop）向けに polling: `WATCHPACK_POLLING=true` / `CHOKIDAR_U
 | `API_URL` | `http://backend:8080` |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` |
-| `BUCKET_ENDPOINT` | `http://minio:9000` |
+| `BUCKET_ENDPOINT` | `http://rustfs:9000` |
 | `BUCKET_ACCESS_KEY_ID` / `BUCKET_SECRET_ACCESS_KEY` | `ecp` / `ecpsecret` |
 | `BUCKET_NAME` | `ec-portfolio-media` |
 | `BUCKET_REGION` | `us-east-1` |
@@ -252,7 +252,7 @@ docker compose exec frontend npx tsc --noEmit
 | backend が 502 | `docker compose logs backend`。`APP_KEY` 未設定 / `storage/` 権限 |
 | メールが届かない | Mailpit UI（:8025）を見る。`queue` コンテナが起動しているか。`queue:failed` |
 | Webhook が来ない | `stripe listen` が起動しているか。`STRIPE_WEBHOOK_SECRET` が listen の表示値と一致し、restart 済みか |
-| MinIO に接続できない | `AWS_ENDPOINT=http://minio:9000` と `AWS_USE_PATH_STYLE_ENDPOINT=true` |
+| RustFS に接続できない | `AWS_ENDPOINT=http://rustfs:9000` と `AWS_USE_PATH_STYLE_ENDPOINT=true` |
 | ポート衝突（5432 / 8025） | ホストの別サービスを止めるか compose の公開ポートを変える |
 
 ## 本番との差分

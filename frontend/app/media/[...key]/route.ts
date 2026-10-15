@@ -1,5 +1,5 @@
 // 商品・CMS 画像の配信プロキシ（docs/05-admin.md）。
-// Railway Storage Bucket（本番）/ MinIO（ローカル）は private のみで直リンクできないため、
+// Railway Storage Bucket（本番）/ RustFS（ローカル）は private のみで直リンクできないため、
 // このサーバー側 Route Handler が S3 互換バケットから GetObject して中継する。
 // next/image はデフォルトの loader のまま（同一オリジンの /media/... を最適化）。
 
@@ -13,7 +13,7 @@ const s3 = new S3Client({
     accessKeyId: process.env.BUCKET_ACCESS_KEY_ID ?? "",
     secretAccessKey: process.env.BUCKET_SECRET_ACCESS_KEY ?? "",
   },
-  // MinIO（ローカル）はパス形式。Railway Storage（本番）はバーチャルホスト形式。
+  // RustFS（ローカル）はパス形式。Railway Storage（本番）はバーチャルホスト形式。
   // backend の AWS_USE_PATH_STYLE_ENDPOINT と同じ判断。既定はローカル向けに true。
   forcePathStyle: process.env.BUCKET_FORCE_PATH_STYLE !== "false",
 });

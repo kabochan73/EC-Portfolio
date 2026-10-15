@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * S3 互換バケット（本番 Railway / ローカル MinIO）の薄いラッパー
+ * S3 互換バケット（本番 Railway / ローカル RustFS）の薄いラッパー
  * （docs/05-admin.md / docs/06-laravel-design.md §2）。
  *
  * キー形式: {prefix}/{ulid}.{ext}

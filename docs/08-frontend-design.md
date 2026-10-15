@@ -229,7 +229,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 
 - `components/product/ProductMedia.tsx`: `images[0]` があれば `next/image`、無ければ `bg-mist` に `NO IMAGE`（`text-graphite`・全大文字・字間広め）。
 - 一覧カードのホバー差し替えは `images[1]` がある時だけ。
-- 画像配信は `/media/[...key]/route.ts`（`@aws-sdk/client-s3` の `GetObjectCommand`、MinIO は `forcePathStyle: true`）。`next/image` の loader はデフォルト（同一オリジン `/media/...`）。
+- 画像配信は `/media/[...key]/route.ts`（`@aws-sdk/client-s3` の `GetObjectCommand`、ローカルの RustFS は `forcePathStyle: true`）。`next/image` の loader はデフォルト（同一オリジン `/media/...`）。
 - R3 の商品シードは画像付き（ユーザー提供）。CMS も画像を持つ。
 
 ---

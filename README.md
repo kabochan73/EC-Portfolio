@@ -43,7 +43,7 @@ docker compose up -d
 
 - frontend: http://localhost:3000
 - backend: http://localhost:8000 （BFF のため通常はブラウザから触らない。curl / Stripe CLI / MCP 用）
-- MinIO コンソール: http://localhost:9001
+- RustFS コンソール（S3 互換ストレージ）: http://localhost:9001/rustfs/console/
 - Mailpit（メール受信箱）: http://localhost:8025
 
 artisan / composer / npm などは `docker compose exec` 経由。詳細は [`docs/07-local-dev.md`](./docs/07-local-dev.md)。
