@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import Field from "@/components/ui/Field";
+import { resolveLoginRedirect } from "@/lib/login-redirect";
 import { loginSchema, type LoginFormValues } from "@/lib/schemas/login";
 import type { ApiResource, User } from "@/lib/types";
 
@@ -43,7 +44,8 @@ export default function LoginForm() {
     const body = (await res.json()) as ApiResource<User>;
     queryClient.setQueryData(["session"], body);
 
-    router.push(searchParams.get("redirect") || "/account");
+    // 戻り先が無ければ admin は管理画面、会員はマイページへ
+    router.push(resolveLoginRedirect(searchParams.get("redirect"), body.data.role));
     router.refresh();
   }
 
