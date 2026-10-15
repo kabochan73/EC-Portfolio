@@ -5,7 +5,7 @@
 //
 // ─────────────────────────────────────────────────────────────
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextResponse } from "next/server";
 
@@ -47,11 +47,26 @@ export function clearSessionCookie(response: NextResponse): void {
   response.cookies.delete(SESSION_COOKIE_NAME);
 }
 
+/**
+ * IP 単位でレート制限される公開エンドポイント（登録・ログイン・パスワードリセット）向け。
+ * Laravel から見ると接続元は常にこのサーバーなので、実クライアントの IP を
+ * X-Client-IP で渡す。共有シークレットが一致したときだけ Laravel が信用する
+ * （backend の ResolveBffClientIp）。IP は Railway エッジが付ける X-Real-IP。
+ */
+async function clientIpHeaders(): Promise<Record<string, string>> {
+  const secret = process.env.BFF_SHARED_SECRET;
+  const clientIp = (await headers()).get("x-real-ip");
+  if (!secret || !clientIp) {
+    return {};
+  }
+  return { "X-Client-IP": clientIp, "X-BFF-Secret": secret };
+}
+
 /** POST /api/register */
 export async function registerUser(payload: RegisterPayload): Promise<AuthResult> {
   const result = await apiFetch<ApiResource<User> & { token: string }>("/api/register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
     body: JSON.stringify(payload),
   });
   return { user: result.data, token: result.token };
@@ -61,7 +76,7 @@ export async function registerUser(payload: RegisterPayload): Promise<AuthResult
 export async function loginUser(payload: LoginPayload): Promise<AuthResult> {
   const result = await apiFetch<ApiResource<User> & { token: string }>("/api/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
     body: JSON.stringify(payload),
   });
   return { user: result.data, token: result.token };
@@ -109,7 +124,7 @@ export async function updatePassword(
 export async function sendPasswordReset(payload: ForgotPasswordPayload): Promise<{ message: string }> {
   return apiFetch<{ message: string }>("/api/forgot-password", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
     body: JSON.stringify(payload),
   });
 }
@@ -118,7 +133,7 @@ export async function sendPasswordReset(payload: ForgotPasswordPayload): Promise
 export async function resetPassword(payload: ResetPasswordPayload): Promise<{ message: string }> {
   return apiFetch<{ message: string }>("/api/reset-password", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
     body: JSON.stringify(payload),
   });
 }

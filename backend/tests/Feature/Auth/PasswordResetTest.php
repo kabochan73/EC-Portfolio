@@ -112,3 +112,18 @@ it('validates the new password', function () {
         ->assertStatus(422)
         ->assertJsonValidationErrorFor('password');
 });
+
+it('revokes all tokens after a password reset', function () {
+    $user = User::factory()->create(['email' => 'known@example.com']);
+    $user->createToken('bff');
+    $user->createToken('bff');
+
+    $this->postJson('/api/reset-password', [
+        'token' => Password::createToken($user),
+        'email' => 'known@example.com',
+        'password' => 'brand-new-password',
+        'password_confirmation' => 'brand-new-password',
+    ])->assertOk();
+
+    expect($user->tokens()->count())->toBe(0);
+});

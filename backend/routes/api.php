@@ -44,14 +44,14 @@ Route::get('/cart/validate', [CartController::class, 'validate']);
 Route::get('/content', [SiteContentController::class, 'index']);
 
 // --- 認証（公開） ---
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 // パスワードリセット
-Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:6,1');
-Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:6,1');
+Route::post('/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:password-reset');
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset');
 
-// Stripe Webhook … 認証なし・署名検証のみ（docs/09）。backend の唯一の公開エンドポイント
+// Stripe Webhook … 認証なし・署名検証のみ（docs/09）。ブラウザ（BFF）を経由しない唯一のエンドポイント
 Route::post('/stripe/webhook', StripeController::class)
     ->middleware('throttle:60,1')
     ->name('stripe.webhook');
@@ -73,7 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // --- 注文 ---
     // メール認証は実装していない（2026-09-14・ポートフォリオ用途のため撤去）。
-    Route::post('/orders', [OrderController::class, 'store']);
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
 

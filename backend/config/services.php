@@ -29,6 +29,12 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
+    // BFF（Next.js）との共有シークレット。一致したときだけ X-Client-IP を信用する
+    // （App\Http\Middleware\ResolveBffClientIp）。未設定なら X-Client-IP は無視
+    'bff' => [
+        'secret' => env('BFF_SHARED_SECRET'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

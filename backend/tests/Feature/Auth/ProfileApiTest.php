@@ -85,3 +85,20 @@ it('requires authentication for profile endpoints', function () {
     $this->putJson('/api/me', ['name' => 'X', 'email' => 'x@example.com'])->assertUnauthorized();
     $this->putJson('/api/me/password', [])->assertUnauthorized();
 });
+
+it('revokes the other devices tokens on password change but keeps the current one', function () {
+    $user = User::factory()->create(['password' => Hash::make('old-password')]);
+    $current = $user->createToken('bff')->plainTextToken;
+    $user->createToken('bff');
+
+    $this->withToken($current)
+        ->putJson('/api/me/password', [
+            'current_password' => 'old-password',
+            'password' => 'brand-new-password',
+            'password_confirmation' => 'brand-new-password',
+        ])
+        ->assertNoContent();
+
+    expect($user->tokens()->count())->toBe(1);
+    $this->withToken($current)->getJson('/api/me')->assertOk();
+});

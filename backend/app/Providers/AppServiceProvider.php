@@ -38,5 +38,14 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by(mb_strtolower($email).'|'.$request->ip());
         });
+
+        // 会員登録（IP で 5 回/分）。IP は BFF が渡す実クライアント IP（ResolveBffClientIp）
+        RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+
+        // パスワードリセットの送信・実行（IP で 6 回/分）
+        RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(6)->by($request->ip()));
+
+        // 注文作成（ユーザーごとに 5 回/分）。在庫の確保を連打で繰り返させない
+        RateLimiter::for('orders', fn (Request $request) => Limit::perMinute(5)->by((string) $request->user()?->id));
     }
 }

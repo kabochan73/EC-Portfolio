@@ -11,7 +11,10 @@
 
 - 在庫の引き当てを決済前に確定させたい（決済画面に進んだ時点で在庫を押さえる。売り違いを減らす）。
 - 決済失敗・離脱は `pending` のまま残り、ユーザーが `/account/orders/[number]` から再開できる。
-- 放置された `pending` は admin がキャンセル（在庫復元）。自動期限切れ処理は R3 スコープ外（cron を持たない）。将来 `payment_intent.canceled`（Stripe 側の自動期限切れ）で拾う余地は残す。
+- 放置された `pending` は **30分（`shop.pending_order_ttl_minutes`）で自動キャンセル**（`orders:expire-pending` をスケジューラが5分ごとに実行。在庫復元）。PaymentIntent は Stripe 側で自動的に期限切れにならないので、こちらから取り消す。
+- 同じユーザーが新しい注文を作ると、そのユーザーの `pending` 注文はキャンセルされる（`CancelSupersededOrders`）。決済画面から戻って注文し直したときの在庫の二重確保を防ぎ、1ユーザーが確保できる在庫を最新の1注文分に抑える。`POST /api/orders` はユーザーごとに 5回/分。
+- `pending → cancelled`（admin / 期限切れ / 置き換え）では **PaymentIntent を Stripe 側で取り消してから**キャンセルする。取り消さないと、キャンセル後にユーザーが支払いを完了できてしまう。決済が `succeeded` / `processing` なら取り消せないのでキャンセルしない（admin には 409。Webhook で paid になる）。
+- それでもキャンセル済み注文に `payment_intent.succeeded` が届いたら、`MarkOrderPaid` が全額返金して記録する（安全網）。
 
 ## PaymentIntent ライフサイクル
 
@@ -32,7 +35,8 @@ POST /api/checkout/payment-intent  （何度呼んでもよい = 冪等）
       ├─ カード拒否 → confirmPayment が error を返す（Webhook: payment_intent.payment_failed）
       │            └─ HandlePaymentFailed: payments.last_error 更新（orders は pending のまま）
       │
-      └─ ユーザー離脱 → 何も起きない（pending のまま）
+      └─ ユーザー離脱 → pending のまま。30分後に orders:expire-pending が
+                       PaymentIntent を取り消して cancelled + 在庫復元
 ```
 
 admin が `paid → cancelled`:

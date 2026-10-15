@@ -136,6 +136,28 @@ services:
       mailpit:
         condition: service_started
 
+  # ── scheduler（Laravel スケジューラ。routes/console.php）──────
+  # 期限切れの未決済注文のキャンセル（orders:expire-pending）などを定期実行する。
+  # queue と同じくコードを変えたら docker compose restart scheduler。
+  scheduler:
+    image: serversideup/php:8.4-fpm-nginx
+    container_name: ecp-scheduler
+    command: ["php", "artisan", "schedule:work"]
+    restart: unless-stopped
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      SSL_MODE: "off"
+      AUTORUN_ENABLED: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'schedule:work' > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+
   # ── frontend（Next.js / next dev）───────────────────────────
   # ブラウザが触れる唯一のサーバー（BFF）。ソースをマウントしてホットリロード。
   frontend:

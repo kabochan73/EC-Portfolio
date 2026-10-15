@@ -22,6 +22,7 @@
 | `frontend` | Next.js（standalone 出力）を Dockerfile でビルド | ✅ 公開ドメイン | 3000 |
 | `backend` | Laravel。`serversideup/php:8.4-fpm-nginx` を薄い Dockerfile でラップ | ⚠️ 公開ドメインあり（ただし `/api/stripe/webhook` 以外は CORS/BFF 前提。下記） | 8080 |
 | `queue` | 同じ backend イメージを `php artisan queue:work` で起動（**R3 追加**） | 内部のみ | - |
+| `scheduler` | 同じ backend イメージを `php artisan schedule:work` で起動（期限切れ注文のキャンセル等。`routes/console.php`） | 内部のみ | - |
 | `postgres` | Railway の PostgreSQL | 内部のみ | 5432 |
 | `bucket` | Railway Storage Bucket（S3互換、private）。商品・CMS 画像 | 内部（S3 API） | - |
 
@@ -43,6 +44,12 @@ R2 は「backend に公開ドメインを付けない（BFF のため不要）�
 - `AUTORUN_*` は queue サービスでは **false**（migrate/config:cache は backend 側が起動時に1回やる。worker が重複して走らせない）
 - ジョブ: 4 種のメール送信（`docs/10`）。失敗は `failed_jobs` に落ちる。`php artisan queue:retry all` で再実行
 - worker が落ちてもリクエスト処理には影響しない（メールが遅延するだけ）。Railway の restart policy に任せる
+
+## scheduler サービス
+
+- queue と同じ作り方で、Start Command を `php artisan schedule:work` にする。`AUTORUN_*` は false、変数は backend と同じセット
+- 実行するもの（`routes/console.php`）: `orders:expire-pending`（5分ごと。30分を過ぎた未決済注文をキャンセルして在庫を戻す）/ `sanctum:prune-expired`（毎日）
+- 止まっても決済・注文自体は動く。未決済注文の在庫が戻らなくなるだけ（admin が手動キャンセルできる）
 
 ## リポジトリ構成
 
@@ -70,6 +77,7 @@ Railway では各サービスの Root Directory を `frontend` / `backend` に�
 | `NEXT_PUBLIC_SITE_URL` | frontend 公開ドメイン | 絶対URL生成 |
 | `BUCKET_ENDPOINT` / `BUCKET_ACCESS_KEY_ID` / `BUCKET_SECRET_ACCESS_KEY` / `BUCKET_NAME` / `BUCKET_REGION` | `${{Bucket.*}}` | `/media` プロキシの GetObject |
 | `NODE_ENV` | `production` | |
+| `BFF_SHARED_SECRET` | backend と同じ値 | 登録・ログイン・パスワードリセットで `X-Real-IP`（Railway エッジが付与）を backend に渡す |
 
 ### backend（`queue` サービスも同じセットを共有）
 | 変数 | 値 | 用途 |
@@ -103,6 +111,7 @@ Railway では各サービスの Root Directory を `frontend` / `backend` に�
 | `RESEND_API_KEY` | `re_...` | Resend API キー |
 | `MAIL_FROM_ADDRESS` | `onboarding@resend.dev` | ドメイン未検証のため Resend 共有。検証後は `noreply@<ドメイン>` |
 | `MAIL_FROM_NAME` | `EC-PORTFOLIO` | |
+| `BFF_SHARED_SECRET` | `openssl rand -hex 32`（frontend と同じ値） | BFF が渡す実クライアント IP（`X-Client-IP`）を信用するための共有シークレット。IP 単位のレート制限用 |
 
 ## デプロイ時のマイグレーション
 

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\StripeService;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
+use Stripe\PaymentIntent;
 use Stripe\Refund;
 
 function statusAdmin(): User
@@ -128,4 +129,36 @@ it('rejects a non-admin', function () {
     $this->actingAs(User::factory()->create())
         ->putJson("/api/admin/orders/{$order->order_number}/status", ['status' => 'shipped'])
         ->assertForbidden();
+});
+
+it('cancels the Stripe PaymentIntent when cancelling a pending order', function () {
+    [$order, $variant] = orderWithStock(OrderStatus::Pending, stock: 8, qty: 2);
+    Payment::factory()->for($order)->create(['stripe_payment_intent_id' => 'pi_pend_1']);
+
+    $stripe = $this->mock(StripeService::class);
+    $stripe->shouldReceive('retrievePaymentIntent')->once()->with('pi_pend_1')
+        ->andReturn(PaymentIntent::constructFrom(['id' => 'pi_pend_1', 'status' => 'requires_payment_method']));
+    $stripe->shouldReceive('cancelPaymentIntent')->once()->with('pi_pend_1')
+        ->andReturn(PaymentIntent::constructFrom(['id' => 'pi_pend_1', 'status' => 'canceled']));
+
+    putStatus($order, 'cancelled')->assertOk();
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Cancelled)
+        ->and($order->fresh()->payment->status)->toBe('canceled')
+        ->and($variant->fresh()->stock)->toBe(10);
+});
+
+it('refuses to cancel a pending order whose payment already succeeded (409)', function () {
+    [$order, $variant] = orderWithStock(OrderStatus::Pending, stock: 8, qty: 2);
+    Payment::factory()->for($order)->create(['stripe_payment_intent_id' => 'pi_done_1']);
+
+    $stripe = $this->mock(StripeService::class);
+    $stripe->shouldReceive('retrievePaymentIntent')
+        ->andReturn(PaymentIntent::constructFrom(['id' => 'pi_done_1', 'status' => 'succeeded']));
+    $stripe->shouldReceive('cancelPaymentIntent')->never();
+
+    putStatus($order, 'cancelled')->assertStatus(409);
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Pending)
+        ->and($variant->fresh()->stock)->toBe(8);
 });

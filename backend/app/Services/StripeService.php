@@ -40,6 +40,12 @@ class StripeService
         return $this->stripe->paymentIntents->retrieve($id);
     }
 
+    /** 未決済の PaymentIntent を取り消す（pending 注文のキャンセル時。docs/09）。 */
+    public function cancelPaymentIntent(string $id): PaymentIntent
+    {
+        return $this->stripe->paymentIntents->cancel($id);
+    }
+
     /** 全額返金（部分返金は R3 スコープ外。docs/09）。 */
     public function refund(string $paymentIntentId): Refund
     {

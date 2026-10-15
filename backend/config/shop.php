@@ -19,6 +19,9 @@ return [
     // 1明細あたりの最大注文数量（不正・誤操作による大量注文を防ぐ簡易な上限）
     'cart_max_quantity_per_line' => 10,
 
+    // 未決済（pending）注文の有効期限（分）。過ぎたら orders:expire-pending がキャンセルして在庫を戻す
+    'pending_order_ttl_minutes' => 30,
+
     // 注文番号のプレフィックス（EC-YYYYMMDD-NNNN）
     'order_number_prefix' => 'EC',
 

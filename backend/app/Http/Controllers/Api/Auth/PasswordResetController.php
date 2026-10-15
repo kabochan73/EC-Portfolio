@@ -40,6 +40,9 @@ class PasswordResetController extends Controller
                     'remember_token' => Str::random(60),
                 ])->save();
 
+                // 乗っ取られていた場合に備え、全端末のトークンを失効させる
+                $user->tokens()->delete();
+
                 event(new PasswordReset($user));
             },
         );

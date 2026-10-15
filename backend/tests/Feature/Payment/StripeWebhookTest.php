@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Stripe\Event;
 use Stripe\Exception\SignatureVerificationException;
+use Stripe\Refund;
 use Tests\Support\StripeFixtures;
 
 function pendingOrderWithIntent(string $intentId = 'pi_test_1'): Order
@@ -110,4 +111,25 @@ it('retries a previously failed event (processed_at still null)', function () {
 
     expect($order->fresh()->status)->toBe(OrderStatus::Paid);
     Queue::assertPushed(SendOrderConfirmationJob::class);
+});
+
+it('refunds a payment that arrives for a cancelled order', function () {
+    Queue::fake();
+    $order = pendingOrderWithIntent('pi_late_1');
+    $order->update(['status' => OrderStatus::Cancelled, 'cancelled_at' => now()]);
+
+    $stripe = $this->mock(StripeService::class);
+    $stripe->shouldReceive('constructWebhookEvent')->andReturn(StripeFixtures::event('payment_intent.succeeded', [
+        'id' => 'pi_late_1',
+        'metadata' => ['order_id' => (string) $order->id],
+    ], id: 'evt_late'));
+    $stripe->shouldReceive('refund')->once()->with('pi_late_1')
+        ->andReturn(Refund::constructFrom(['id' => 're_late']));
+
+    $this->postJson('/api/stripe/webhook', ['_' => 1], ['Stripe-Signature' => 't=1,v1=x'])->assertOk();
+
+    $order->refresh();
+    expect($order->status)->toBe(OrderStatus::Cancelled)
+        ->and($order->payment->refunded_at)->not->toBeNull();
+    Queue::assertNotPushed(SendOrderConfirmationJob::class);
 });

@@ -98,3 +98,56 @@ it('revokes the current token on logout', function () {
 
     expect($user->tokens()->count())->toBe(0);
 });
+
+it('rejects a token older than the expiration (30 days)', function () {
+    $token = User::factory()->create()->createToken('bff')->plainTextToken;
+
+    $this->travel(31)->days();
+
+    $this->withToken($token)->getJson('/api/me')->assertUnauthorized();
+});
+
+it('throttles registrations per client IP', function () {
+    foreach (range(1, 5) as $i) {
+        $this->postJson('/api/register', [
+            'name' => "User {$i}",
+            'email' => "user{$i}@example.com",
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated();
+    }
+
+    $this->postJson('/api/register', [
+        'name' => 'User 6',
+        'email' => 'user6@example.com',
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+    ])->assertStatus(429);
+});
+
+it('rate-limits by the client IP forwarded by the BFF, not the BFF itself', function () {
+    $forgot = fn (string $ip, string $secret = 'bff_test_secret') => $this->postJson(
+        '/api/forgot-password',
+        ['email' => 'nobody@example.com'],
+        ['X-Client-IP' => $ip, 'X-BFF-Secret' => $secret],
+    );
+
+    foreach (range(1, 6) as $ignored) {
+        $forgot('203.0.113.1')->assertOk();
+    }
+    $forgot('203.0.113.1')->assertStatus(429);
+
+    // 別のクライアントは BFF が同じでも制限されない
+    $forgot('203.0.113.2')->assertOk();
+});
+
+it('ignores a forwarded client IP without the shared secret', function () {
+    foreach (range(1, 6) as $i) {
+        $this->postJson('/api/forgot-password', ['email' => 'nobody@example.com'],
+            ['X-Client-IP' => "203.0.113.{$i}", 'X-BFF-Secret' => 'wrong'])->assertOk();
+    }
+
+    // IP を偽っても接続元 IP で数えられるので 7 回目は制限される
+    $this->postJson('/api/forgot-password', ['email' => 'nobody@example.com'],
+        ['X-Client-IP' => '203.0.113.99', 'X-BFF-Secret' => 'wrong'])->assertStatus(429);
+});
